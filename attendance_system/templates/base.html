@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}UFVJM QR{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root {
+      --bg: #0d0f1a;
+      --surface: #13162a;
+      --surface2: #1a1e35;
+      --border: #3FAF5A;
+      --accent: #4f6ef7;
+      --accent2: #0065A2;
+      --green: #10d98a;
+      --red: #f43f5e;
+      --yellow: #fbbf24;
+      --text: #e8eaf6;
+      --text-muted: #FFFFFF;
+      --radius: 12px;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Sidebar ── */
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 260px; min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      transition: transform .3s ease;
+    }
+    .sidebar-logo {
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo .logo-text {
+      font-family: var(--font-head);
+      font-size: 1.3rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .sidebar-logo .logo-sub {
+      font-size: .7rem; color: var(--text-muted); margin-top: 2px;
+      letter-spacing: .1em; text-transform: uppercase;
+    }
+    .sidebar-user {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .user-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-head); font-weight: 700; font-size: .9rem;
+      flex-shrink: 0;
+    }
+    .user-info .name { font-size: .82rem; font-weight: 600; color: var(--text); }
+    .user-info .role {
+      font-size: .7rem; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+    .sidebar-nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+    .nav-section-label {
+      padding: 8px 24px 4px;
+      font-size: .65rem; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .12em;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 24px; cursor: pointer;
+      color: var(--text-muted); font-size: .82rem;
+      transition: all .2s; position: relative;
+    }
+    .nav-item:hover, .nav-item.active {
+      color: var(--text);
+      background: var(--surface2);
+    }
+    .nav-item.active::before {
+      content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+      width: 3px; border-radius: 0 3px 3px 0;
+      background: linear-gradient(var(--accent), var(--accent2));
+    }
+    .nav-item i { width: 18px; text-align: center; font-size: .9rem; }
+    .sidebar-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+    }
+    .btn-logout {
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text-muted); font-size: .82rem; font-family: var(--font-mono);
+      background: none; border: none; cursor: pointer; width: 100%;
+      padding: 8px 0; transition: color .2s;
+    }
+    .btn-logout:hover { color: var(--red); }
+
+    /* ── Main content ── */
+    .main-content {
+      margin-left: 260px; flex: 1;
+      display: flex; flex-direction: column; min-height: 100vh;
+    }
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-title {
+      font-family: var(--font-head); font-size: 1.15rem; font-weight: 700;
+    }
+    .topbar-actions { display: flex; gap: 10px; align-items: center; }
+    .page-body { padding: 32px; flex: 1; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-family: var(--font-head); font-size: 1rem; font-weight: 700;
+    }
+
+    /* ── Stat cards ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px; margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      position: relative; overflow: hidden;
+    }
+    .stat-card::after {
+      content: ''; position: absolute;
+      top: 0; right: 0; width: 60px; height: 60px;
+      border-radius: 0 var(--radius) 0 60px;
+      opacity: .12;
+    }
+    .stat-card.blue::after  { background: var(--accent); }
+    .stat-card.purple::after { background: var(--accent2); }
+    .stat-card.green::after  { background: var(--green); }
+    .stat-card.red::after    { background: var(--red); }
+    .stat-card.yellow::after { background: var(--yellow); }
+    .stat-label {
+      font-size: .7rem; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px;
+    }
+    .stat-value {
+      font-family: var(--font-head); font-size: 2rem; font-weight: 800;
+      line-height: 1;
+    }
+    .stat-card.blue .stat-value  { color: var(--accent); }
+    .stat-card.purple .stat-value { color: #a78bfa; }
+    .stat-card.green .stat-value  { color: var(--green); }
+    .stat-card.red .stat-value    { color: var(--red); }
+    .stat-card.yellow .stat-value { color: var(--yellow); }
+    .stat-icon {
+      font-size: 1.5rem; margin-bottom: 12px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 18px; border-radius: 8px;
+      font-family: var(--font-mono); font-size: .82rem;
+      border: none; cursor: pointer; transition: all .2s;
+      text-decoration: none; white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+    }
+    .btn-primary:hover { background: #3b56e8; text-decoration: none; color: #fff; }
+    .btn-outline {
+      background: transparent; color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-danger:hover { background: #e11d48; text-decoration: none; color: #fff; }
+    .btn-success { background: var(--green); color: #0d0f1a; }
+    .btn-success:hover { background: #0dbd78; text-decoration: none; }
+    .btn-sm { padding: 6px 12px; font-size: .75rem; }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th {
+      text-align: left; padding: 10px 14px;
+      font-size: .68rem; text-transform: uppercase;
+      letter-spacing: .1em; color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-head);
+    }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 20px; font-size: .7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+    .badge-green  { background: rgba(16,217,138,.15); color: var(--green); }
+    .badge-red    { background: rgba(244,63,94,.15);  color: var(--red); }
+    .badge-yellow { background: rgba(251,191,36,.15); color: var(--yellow); }
+    .badge-blue   { background: rgba(79,110,247,.15); color: var(--accent); }
+    .badge-gray   { background: rgba(123,130,168,.15); color: var(--text-muted); }
+
+    /* ── Forms ── */
+    .form-group { margin-bottom: 18px; }
+    label {
+      display: block; font-size: .75rem; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px;
+    }
+    input[type=text], input[type=email], input[type=password],
+    input[type=date], input[type=time], input[type=number],
+    select, textarea {
+      width: 100%; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-family: var(--font-mono); font-size: .85rem;
+      padding: 10px 14px; transition: border-color .2s;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+    select option { background: var(--surface2); }
+    textarea { min-height: 80px; resize: vertical; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .errorlist { list-style: none; color: var(--red); font-size: .78rem; margin-top: 4px; }
+
+    /* ── Alerts ── */
+    .alert {
+      padding: 12px 16px; border-radius: 8px;
+      font-size: .83rem; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .alert-success { background: rgba(16,217,138,.1); border: 1px solid rgba(16,217,138,.3); color: var(--green); }
+    .alert-error   { background: rgba(244,63,94,.1);  border: 1px solid rgba(244,63,94,.3);  color: var(--red); }
+    .alert-info    { background: rgba(79,110,247,.1); border: 1px solid rgba(79,110,247,.3); color: var(--accent); }
+    .alert-warning { background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.3); color: var(--yellow); }
+
+    /* ── Messages ── */
+    .messages-wrap { margin-bottom: 20px; }
+
+    /* ── Hamburger (mobile) ── */
+    .hamburger {
+      display: none; background: none; border: none;
+      color: var(--text); font-size: 1.3rem; cursor: pointer;
+    }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0; }
+      .hamburger { display: block; }
+      .page-body { padding: 18px; }
+      .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    .fade-in { animation: fadeIn .4s ease both; }
+    .fade-in-1 { animation-delay: .05s; }
+    .fade-in-2 { animation-delay: .1s; }
+    .fade-in-3 { animation-delay: .15s; }
+    .fade-in-4 { animation-delay: .2s; }
+
+    /* ── Misc ── */
+    .text-muted { color: var(--text-muted); }
+    .text-sm { font-size: .78rem; }
+    .mt-4 { margin-top: 16px; }
+    .mb-4 { margin-bottom: 16px; }
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .justify-between { justify-content: space-between; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .full-width { grid-column: 1 / -1; }
+    .empty-state {
+      text-align: center; padding: 48px 24px; color: var(--text-muted);
+    }
+    .empty-state i { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+    .qr-img-wrap {
+      display: flex; justify-content: center; align-items: center;
+      background: white; border-radius: 12px; padding: 16px;
+      margin: 0 auto; width: fit-content;
+    }
+    .qr-img-wrap img { display: block; max-width: 220px; height: auto; }
+    .pill {
+      display: inline-block; padding: 2px 10px;
+      border-radius: 20px; font-size: .7rem;
+    }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  {% if user.is_authenticated %}
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">UFVJM QR</div>
+      <div class="logo-sub">Sistema de Frequência</div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar">{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}</div>
+      <div class="user-info">
+        <div class="name">{{ user.get_full_name|truncatechars:22 }}</div>
+        <div class="role">{{ user.get_role_display }}</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Principal</div>
+      <a href="{% url 'dashboard' %}" class="nav-item {% block nav_dashboard %}{% endblock %}">
+        <i class="fa-solid fa-gauge"></i> Dashboard
+      </a>
+
+      {% if user.is_student %}
+      <div class="nav-section-label">Frequência</div>
+      <a href="/api/attendance/?format=json" class="nav-item {% block nav_minhas_presencas %}{% endblock %}">
+        <i class="fa-solid fa-calendar-check"></i> Minhas Presenças
+      </a>
+      {% endif %}
+
+      {% if user.is_professor or user.is_admin %}
+      <div class="nav-section-label">Gestão</div>
+      <a href="/api/courses/aulas/?format=json" class="nav-item {% block nav_aulas %}{% endblock %}">
+        <i class="fa-solid fa-chalkboard-user"></i> Aulas
+      </a>
+      <a href="/api/courses/disciplinas/?format=json" class="nav-item {% block nav_disc %}{% endblock %}">
+        <i class="fa-solid fa-book"></i> Disciplinas
+      </a>
+      <a href="/api/attendance/?format=json" class="nav-item {% block nav_presencas %}{% endblock %}">
+        <i class="fa-solid fa-clipboard-list"></i> Presenças
+      </a>
+      {% endif %}
+
+      {% if user.is_admin %}
+      <div class="nav-section-label">Administração</div>
+      <a href="/api/auth/students/?format=json" class="nav-item">
+        <i class="fa-solid fa-user-graduate"></i> Alunos
+      </a>
+      <a href="/api/auth/professors/?format=json" class="nav-item">
+        <i class="fa-solid fa-user-tie"></i> Professores
+      </a>
+      <a href="/api/courses/salas/?format=json" class="nav-item">
+        <i class="fa-solid fa-door-open"></i> Salas
+      </a>
+      <a href="/admin/" class="nav-item">
+        <i class="fa-solid fa-screwdriver-wrench"></i> Admin Django
+      </a>
+      {% endif %}
+    </nav>
+    <div class="sidebar-footer">
+      <form method="post" action="{% url 'account_logout' %}">
+        {% csrf_token %}
+        <button class="btn-logout" type="submit">
+          <i class="fa-solid fa-right-from-bracket"></i> Sair
+        </button>
+      </form>
+    </div>
+  </aside>
+  {% endif %}
+
+  <!-- Main -->
+  <div class="main-content">
+    <header class="topbar">
+      {% if user.is_authenticated %}
+      <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      {% endif %}
+      <span class="topbar-title">{% block topbar_title %}FrequênciaQR{% endblock %}</span>
+      <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+    </header>
+
+    <div class="page-body">
+      <!-- Django messages -->
+      {% if messages %}
+      <div class="messages-wrap">
+        {% for msg in messages %}
+        <div class="alert alert-{% if msg.tags == 'error' %}error{% elif msg.tags == 'success' %}success{% elif msg.tags == 'warning' %}warning{% else %}info{% endif %}">
+          <i class="fa-solid fa-{% if msg.tags == 'error' %}triangle-exclamation{% elif msg.tags == 'success' %}circle-check{% elif msg.tags == 'warning' %}triangle-exclamation{% else %}circle-info{% endif %}"></i>
+          {{ msg }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

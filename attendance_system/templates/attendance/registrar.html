@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Registrar Presença — UFVJM QR{% endblock %}
+{% block topbar_title %}Registrar Presença{% endblock %}
+
+{% block extra_css %}
+<style>
+  .presenca-card {
+    max-width: 520px; margin: 0 auto;
+  }
+  .aula-info {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 20px; margin-bottom: 24px;
+  }
+  .aula-info-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px; font-size: .83rem; color: var(--text-muted);
+  }
+  .aula-info-row:last-child { margin-bottom: 0; }
+  .aula-info-row i { width: 16px; color: var(--accent); }
+  .aula-info-row span { color: var(--text); }
+  .geo-status {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; border-radius: 8px; font-size: .82rem;
+    margin-bottom: 20px;
+  }
+  .geo-status.waiting  { background: rgba(251,191,36,.1);  border: 1px solid rgba(251,191,36,.3);  color: var(--yellow); }
+  .geo-status.success  { background: rgba(16,217,138,.1);  border: 1px solid rgba(16,217,138,.3);  color: var(--green); }
+  .geo-status.error    { background: rgba(244,63,94,.1);   border: 1px solid rgba(244,63,94,.3);   color: var(--red); }
+  .result-box {
+    display: none; padding: 20px; border-radius: 10px;
+    text-align: center; margin-top: 20px;
+  }
+  .result-box.show { display: block; }
+  .result-box.ok   { background: rgba(16,217,138,.08); border: 1px solid rgba(16,217,138,.25); }
+  .result-box.err  { background: rgba(244,63,94,.08);  border: 1px solid rgba(244,63,94,.25); }
+  .result-icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .result-title { font-family: var(--font-head); font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+  .result-msg { font-size: .8rem; color: var(--text-muted); }
+  .spinner { display: inline-block; width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,.2); border-top-color: currentColor;
+    border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #btn-registrar:disabled { opacity: .6; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="presenca-card fade-in">
+  <div style="margin-bottom:24px;">
+    <h2 style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;margin-bottom:4px;">
+      <i class="fa-solid fa-clipboard-check" style="color:var(--accent)"></i>
+      Registrar Presença
+    </h2>
+    <p class="text-muted text-sm">Confirme sua presença na aula abaixo.</p>
+  </div>
+
+  <div class="aula-info">
+    <div class="aula-info-row">
+      <i class="fa-solid fa-book"></i>
+      <span>{{ aula.disciplina.nome }}</span>
+      <span class="badge badge-blue" style="margin-left:auto;">{{ aula.disciplina.codigo }}</span>
+    </div>
+    <div class="aula-info-row">
+      <i class="fa-solid fa-calendar"></i>
+      <span>{{ aula.data|date:"d/m/Y" }}</span>
+    </div>
+    <div class="aula-info-row">
+      <i class="fa-solid fa-clock"></i>
+      <span>{{ aula.horario_inicio|time:"H:i" }} – {{ aula.horario_fim|time:"H:i" }}</span>
+    </div>
+    <div class="aula-info-row">
+      <i class="fa-solid fa-door-open"></i>
+      <span>{{ aula.sala }} · {{ aula.sala.predio }}</span>
+    </div>
+    <div class="aula-info-row">
+      <i class="fa-solid fa-user"></i>
+      <span>{{ request.user.get_full_name }}</span>
+    </div>
+  </div>
+
+  <div class="geo-status waiting" id="geo-status">
+    <span class="spinner"></span>
+    <span>Obtendo sua localização…</span>
+  </div>
+
+  <button class="btn btn-success" id="btn-registrar" disabled
+          style="width:100%;justify-content:center;padding:14px;font-size:.9rem;"
+          onclick="registrarPresenca()">
+    <i class="fa-solid fa-circle-check"></i> Confirmar Presença
+  </button>
+
+  <div class="result-box" id="result-box">
+    <div class="result-icon" id="result-icon"></div>
+    <div class="result-title" id="result-title"></div>
+    <div class="result-msg" id="result-msg"></div>
+  </div>
+</div>
+
+<script>
+const AULA_ID = {{ aula.id }};
+const TOKEN   = "{{ token }}";
+let userLat = null, userLon = null;
+
+function setGeoStatus(type, msg) {
+  const el = document.getElementById('geo-status');
+  el.className = `geo-status ${type}`;
+  const icons = {
+    waiting: '<span class="spinner"></span>',
+    success: '<i class="fa-solid fa-circle-check"></i>',
+    error:   '<i class="fa-solid fa-triangle-exclamation"></i>',
+  };
+  el.innerHTML = `${icons[type]}<span>${msg}</span>`;
+}
+
+function getCookie(name) {
+  let v = null;
+  document.cookie.split(';').forEach(c => {
+    const [k, val] = c.trim().split('=');
+    if (k === name) v = decodeURIComponent(val);
+  });
+  return v;
+}
+
+// Get geolocation
+if ('geolocation' in navigator) {
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLat = pos.coords.latitude;
+      userLon = pos.coords.longitude;
+      setGeoStatus('success', `Localização obtida — Lat: ${userLat.toFixed(5)}, Lon: ${userLon.toFixed(5)}`);
+      document.getElementById('btn-registrar').disabled = false;
+    },
+    err => {
+      setGeoStatus('error', 'Não foi possível obter localização. Verifique as permissões do navegador.');
+      // Still allow button — server will reject if geo needed
+      document.getElementById('btn-registrar').disabled = false;
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+} else {
+  setGeoStatus('error', 'Geolocalização não suportada neste navegador.');
+  document.getElementById('btn-registrar').disabled = false;
+}
+
+async function registrarPresenca() {
+  const btn = document.getElementById('btn-registrar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Registrando…';
+
+  try {
+    const res = await fetch('/api/attendance/registrar/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({
+        aula_id: AULA_ID,
+        token: TOKEN,
+        latitude: userLat,
+        longitude: userLon,
+      }),
+      credentials: 'same-origin',
+    });
+
+    const data = await res.json();
+    const box = document.getElementById('result-box');
+
+    if (res.status === 201) {
+      box.className = 'result-box show ok';
+      document.getElementById('result-icon').innerHTML = '<i class="fa-solid fa-circle-check" style="color:var(--green)"></i>';
+      document.getElementById('result-title').textContent = 'Presença Registrada!';
+      document.getElementById('result-msg').textContent = `Registrado às ${new Date().toLocaleTimeString('pt-BR')}`;
+      btn.style.display = 'none';
+    } else {
+      box.className = 'result-box show err';
+      document.getElementById('result-icon').innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:var(--red)"></i>';
+      document.getElementById('result-title').textContent = 'Presença não registrada';
+      const erros = data.erros ? data.erros.join(' · ') : data.detail;
+      document.getElementById('result-msg').textContent = erros;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Tentar novamente';
+    }
+  } catch(e) {
+    document.getElementById('result-box').className = 'result-box show err';
+    document.getElementById('result-icon').innerHTML = '<i class="fa-solid fa-wifi" style="color:var(--red)"></i>';
+    document.getElementById('result-title').textContent = 'Erro de conexão';
+    document.getElementById('result-msg').textContent = 'Verifique sua conexão e tente novamente.';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Tentar novamente';
+  }
+}
+</script>
+{% endblock %}

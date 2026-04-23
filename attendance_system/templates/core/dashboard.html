@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — UFVJM QR{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+  <h2 style="font-family:var(--font-head);font-size:1.5rem;font-weight:800;margin-bottom:6px;">
+    Olá, {{ user.first_name }} 👋
+  </h2>
+  <p class="text-muted text-sm mb-4">
+    {% now "l, d \d\e F \d\e Y" %} · {{ user.get_role_display }}
+  </p>
+
+  {# ─── ALUNO ─── #}
+  {% if user.is_student %}
+  <div class="stats-grid fade-in-1">
+    <div class="stat-card blue">
+      <div class="stat-icon" style="color:var(--accent)"><i class="fa-solid fa-calendar-check"></i></div>
+      <div class="stat-label">Total de Presenças</div>
+      <div class="stat-value">{{ stats.total|default:"0" }}</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-icon" style="color:var(--green)"><i class="fa-solid fa-circle-check"></i></div>
+      <div class="stat-label">Confirmadas</div>
+      <div class="stat-value">{{ stats.presentes|default:"0" }}</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-icon" style="color:var(--red)"><i class="fa-solid fa-circle-xmark"></i></div>
+      <div class="stat-label">Negadas</div>
+      <div class="stat-value">{{ stats.negadas|default:"0" }}</div>
+    </div>
+  </div>
+
+  <div class="card fade-in-2">
+    <div class="card-header">
+      <span class="card-title"><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent)"></i> Últimas Presenças</span>
+      <a href="/presenca/" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-qrcode"></i> Escanear QR Code
+      </a>
+    </div>
+    {% if presencas %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Disciplina</th><th>Data</th><th>Horário</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in presencas %}
+          <tr>
+            <td>{{ p.aula.disciplina.nome }}</td>
+            <td>{{ p.aula.data|date:"d/m/Y" }}</td>
+            <td>{{ p.horario_registro|date:"H:i" }}</td>
+            <td>
+              {% if p.status == 'presente' %}<span class="badge badge-green">Presente</span>
+              {% elif p.status == 'negado' %}<span class="badge badge-red">Negado</span>
+              {% elif p.status == 'ausente' %}<span class="badge badge-gray">Ausente</span>
+              {% else %}<span class="badge badge-yellow">Pendente</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-regular fa-calendar"></i>
+      Nenhuma presença registrada ainda.
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ─── PROFESSOR ─── #}
+  {% if user.is_professor %}
+  <div class="stats-grid fade-in-1">
+    <div class="stat-card blue">
+      <div class="stat-icon" style="color:var(--accent)"><i class="fa-solid fa-book"></i></div>
+      <div class="stat-label">Disciplinas</div>
+      <div class="stat-value">{{ stats.disciplinas }}</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-icon" style="color:var(--green)"><i class="fa-solid fa-chalkboard-user"></i></div>
+      <div class="stat-label">Aulas Hoje</div>
+      <div class="stat-value">{{ stats.aulas_hoje }}</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-icon" style="color:#a78bfa"><i class="fa-solid fa-clipboard-check"></i></div>
+      <div class="stat-label">Total Presenças</div>
+      <div class="stat-value">{{ stats.total_presencas }}</div>
+    </div>
+  </div>
+
+  {% if aulas_hoje %}
+  <div class="card fade-in-2 mb-4" style="margin-bottom:20px">
+    <div class="card-header">
+      <span class="card-title"><i class="fa-solid fa-calendar-day" style="color:var(--accent)"></i> Aulas de Hoje</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Disciplina</th><th>Sala</th><th>Horário</th><th>QR Code</th></tr></thead>
+        <tbody>
+          {% for a in aulas_hoje %}
+          <tr>
+            <td>{{ a.disciplina.nome }}</td>
+            <td>{{ a.sala }}</td>
+            <td>{{ a.horario_inicio|time:"H:i" }} – {{ a.horario_fim|time:"H:i" }}</td>
+            <td>
+              <a href="/api/courses/aulas/{{ a.id }}/qrcode/?format=json" class="btn btn-outline btn-sm">
+                <i class="fa-solid fa-qrcode"></i> Ver QR
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card fade-in-3">
+    <div class="card-header">
+      <span class="card-title"><i class="fa-solid fa-book" style="color:var(--accent)"></i> Minhas Disciplinas</span>
+      <a href="/api/courses/disciplinas/?format=json" class="btn btn-outline btn-sm">Ver todas</a>
+    </div>
+    {% if disciplinas %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Código</th><th>Nome</th><th>Semestre</th><th>Aulas</th></tr></thead>
+        <tbody>
+          {% for d in disciplinas %}
+          <tr>
+            <td><span class="badge badge-blue">{{ d.codigo }}</span></td>
+            <td>{{ d.nome }}</td>
+            <td>{{ d.semestre }}º/{{ d.ano }}</td>
+            <td>{{ d.total_aulas }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><i class="fa-solid fa-book-open"></i> Nenhuma disciplina cadastrada.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ─── ADMIN ─── #}
+  {% if user.is_admin %}
+  <div class="stats-grid fade-in-1">
+    <div class="stat-card blue">
+      <div class="stat-icon" style="color:var(--accent)"><i class="fa-solid fa-user-graduate"></i></div>
+      <div class="stat-label">Alunos</div>
+      <div class="stat-value">{{ stats.alunos }}</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-icon" style="color:#a78bfa"><i class="fa-solid fa-user-tie"></i></div>
+      <div class="stat-label">Professores</div>
+      <div class="stat-value">{{ stats.professores }}</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-icon" style="color:var(--green)"><i class="fa-solid fa-book"></i></div>
+      <div class="stat-label">Disciplinas Ativas</div>
+      <div class="stat-value">{{ stats.disciplinas }}</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="stat-icon" style="color:var(--yellow)"><i class="fa-solid fa-chalkboard-user"></i></div>
+      <div class="stat-label">Aulas Hoje</div>
+      <div class="stat-value">{{ stats.aulas_hoje }}</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-icon" style="color:var(--red)"><i class="fa-solid fa-clipboard-check"></i></div>
+      <div class="stat-label">Presenças Hoje</div>
+      <div class="stat-value">{{ stats.presencas_hoje }}</div>
+    </div>
+  </div>
+
+  <div class="grid-2 fade-in-2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="fa-solid fa-bolt" style="color:var(--yellow)"></i> Ações Rápidas</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <a href="/api/auth/students/?format=json" class="btn btn-outline"><i class="fa-solid fa-user-plus"></i> Gerenciar Alunos</a>
+        <a href="/api/auth/professors/?format=json" class="btn btn-outline"><i class="fa-solid fa-user-tie"></i> Gerenciar Professores</a>
+        <a href="/api/courses/salas/?format=json" class="btn btn-outline"><i class="fa-solid fa-door-open"></i> Gerenciar Salas</a>
+        <a href="/api/courses/disciplinas/?format=json" class="btn btn-outline"><i class="fa-solid fa-book"></i> Gerenciar Disciplinas</a>
+        <a href="/admin/" class="btn btn-primary"><i class="fa-solid fa-screwdriver-wrench"></i> Painel Administrativo</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="fa-solid fa-shield-halved" style="color:var(--accent)"></i> Auditoria</span>
+      </div>
+      <a href="/admin/audit/auditlog/" class="btn btn-outline" style="width:100%;justify-content:center;">
+        <i class="fa-solid fa-scroll"></i> Ver Logs de Auditoria
+      </a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

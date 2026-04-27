@@ -32,7 +32,12 @@ fi
 
 # 4. Banco de dados
 echo "[4/6] Aplicando migrações..."
-python manage.py migrate --run-syncdb
+if python manage.py migrate --run-syncdb; then
+  echo "Banco configurado com sucesso."
+else
+  echo "Erro ao conectar no banco. Verifique o arquivo .env."
+  exit 1
+fi
 
 # 5. Dados demo
 echo "[5/6] Inserindo dados de demonstração..."

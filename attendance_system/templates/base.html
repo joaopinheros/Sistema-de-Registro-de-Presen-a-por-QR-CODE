@@ -364,26 +364,26 @@
 
       {% if user.is_professor or user.is_admin %}
       <div class="nav-section-label">Gestão</div>
-      <a href="/api/courses/aulas/?format=json" class="nav-item {% block nav_aulas %}{% endblock %}">
+      <a href="/dashboard/aulas/" class="nav-item {% block nav_aulas %}{% endblock %}">
         <i class="fa-solid fa-chalkboard-user"></i> Aulas
       </a>
-      <a href="/api/courses/disciplinas/?format=json" class="nav-item {% block nav_disc %}{% endblock %}">
+      <a href="/dashboard/disciplinas/" class="nav-item {% block nav_disc %}{% endblock %}">
         <i class="fa-solid fa-book"></i> Disciplinas
       </a>
-      <a href="/api/attendance/?format=json" class="nav-item {% block nav_presencas %}{% endblock %}">
+      <a href="/dashboard/presencas" class="nav-item {% block nav_presencas %}{% endblock %}">
         <i class="fa-solid fa-clipboard-list"></i> Presenças
       </a>
       {% endif %}
 
       {% if user.is_admin %}
       <div class="nav-section-label">Administração</div>
-      <a href="/api/auth/students/?format=json" class="nav-item">
+      <a href="/dashboard/alunos" class="nav-item">
         <i class="fa-solid fa-user-graduate"></i> Alunos
       </a>
-      <a href="/api/auth/professors/?format=json" class="nav-item">
+      <a href="/dashboard/professores" class="nav-item">
         <i class="fa-solid fa-user-tie"></i> Professores
       </a>
-      <a href="/api/courses/salas/?format=json" class="nav-item">
+      <a href="/dashboard/salas/" class="nav-item">
         <i class="fa-solid fa-door-open"></i> Salas
       </a>
       <a href="/admin/" class="nav-item">

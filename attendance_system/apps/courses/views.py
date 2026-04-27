@@ -78,10 +78,10 @@ class AulaViewSet(viewsets.ModelViewSet):
             return Aula.objects.filter(ativa=True).select_related('disciplina__professor__user', 'sala')
         return Aula.objects.select_related('disciplina__professor__user', 'sala').all()
 
-    def perform_create(self, serializer):
-        aula = serializer.save()
-        # Auto-generate QR Code on creation
-        QRCodeService.generate(aula)
+#    def perform_create(self, serializer):
+#        aula = serializer.save()
+#        # Auto-generate QR Code on creation
+#        QRCodeService.generate(aula)
 
     @action(detail=True, methods=['post'], permission_classes=[IsProfessorOrAdmin])
     def gerar_qrcode(self, request, pk=None):

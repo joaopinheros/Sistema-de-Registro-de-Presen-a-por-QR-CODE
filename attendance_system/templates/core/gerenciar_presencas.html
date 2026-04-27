@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar Presenças — UFVJM QR{% endblock %}
+{% block topbar_title %}Presenças{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+  <div class="card">
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-clipboard-list" style="color:var(--accent);font-size:1.1rem;"></i>
+        <span class="card-title">Registro de Presenças</span>
+        <span class="badge badge-blue" style="margin-left:auto;">{{ total }} registro{{ total|pluralize }}</span>
+      </div>
+      {% if user.is_student %}
+      <a href="/presenca/" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-qrcode"></i> Escanear QR Code
+      </a>
+      {% endif %}
+    </div>
+
+    {% if presencas %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Aluno</th>
+            <th>Disciplina</th>
+            <th>Data</th>
+            <th>Horário do Registro</th>
+            <th>IP Registrado</th>
+            <th>Status</th>
+            {% if user.is_professor or user.is_admin %}
+            <th>Ações</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for presenca in presencas %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="user-avatar" style="width:28px;height:28px;font-size:.75rem;">{{ presenca.aluno.user.first_name|first|upper }}{{ presenca.aluno.user.last_name|first|upper }}</div>
+                <span>{{ presenca.aluno.user.get_full_name }}</span>
+              </div>
+            </td>
+            <td>{{ presenca.aula.disciplina.nome }}</td>
+            <td>{{ presenca.aula.data|date:"d/m/Y" }}</td>
+            <td>{{ presenca.horario_registro|date:"d/m/Y H:i" }}</td>
+            <td><code style="font-size:.7rem;background:var(--surface2);padding:2px 6px;border-radius:4px;">{{ presenca.ip_registrado }}</code></td>
+            <td>
+              {% if presenca.status == 'presente' %}
+                <span class="badge badge-green"><i class="fa-solid fa-circle-check"></i> Presente</span>
+              {% elif presenca.status == 'negado' %}
+                <span class="badge badge-red"><i class="fa-solid fa-circle-xmark"></i> Negado</span>
+              {% elif presenca.status == 'ausente' %}
+                <span class="badge badge-gray"><i class="fa-solid fa-minus-circle"></i> Ausente</span>
+              {% else %}
+                <span class="badge badge-yellow"><i class="fa-solid fa-hourglass-end"></i> Pendente</span>
+              {% endif %}
+            </td>
+            {% if user.is_professor or user.is_admin %}
+            <td>
+              <a href="/admin/attendance/presenca/{{ presenca.id }}/change/" class="btn btn-outline btn-sm" target="_blank">
+                <i class="fa-solid fa-edit"></i> Editar
+              </a>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-regular fa-clipboard"></i>
+      <p>Nenhuma presença registrada ainda.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

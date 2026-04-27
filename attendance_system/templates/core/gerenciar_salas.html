@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar Salas — UFVJM QR{% endblock %}
+{% block topbar_title %}Salas{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+  <div class="card">
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-door-open" style="color:var(--accent);font-size:1.1rem;"></i>
+        <span class="card-title">Gerenciar Salas</span>
+        <span class="badge badge-blue" style="margin-left:auto;">{{ total }} sala{{ total|pluralize }}</span>
+      </div>
+      <a href="/admin/courses/sala/add/" class="btn btn-primary btn-sm" target="_blank">
+        <i class="fa-solid fa-plus"></i> Nova Sala
+      </a>
+    </div>
+
+    {% if salas %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Prédio</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Raio Permitido</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sala in salas %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-door-open" style="color:var(--green);"></i>
+                <strong>{{ sala.nome }}</strong>
+              </div>
+            </td>
+            <td>{{ sala.predio }}</td>
+            <td><code style="font-size:.75rem;background:var(--surface2);padding:2px 6px;border-radius:4px;">{{ sala.latitude }}</code></td>
+            <td><code style="font-size:.75rem;background:var(--surface2);padding:2px 6px;border-radius:4px;">{{ sala.longitude }}</code></td>
+            <td><span class="badge badge-yellow">{{ sala.raio_permitido }}m</span></td>
+            <td>
+              <div style="display:flex;gap:6px;">
+                <a href="/admin/courses/sala/{{ sala.id }}/change/" class="btn btn-outline btn-sm" target="_blank">
+                  <i class="fa-solid fa-edit"></i> Editar
+                </a>
+                <a href="/admin/courses/sala/{{ sala.id }}/delete/" class="btn btn-danger btn-sm" target="_blank" onclick="return confirm('Tem certeza?')">
+                  <i class="fa-solid fa-trash"></i> Deletar
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-regular fa-door-open"></i>
+      <p>Nenhuma sala cadastrada ainda.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

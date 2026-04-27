@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Escanear QR Code — UFVJM QR</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    :root {
+      --bg: #0d0f1a;
+      --surface: #13162a;
+      --surface2: #1a1e35;
+      --border: #3FAF5A;
+      --accent: #4f6ef7;
+      --accent2: #0065A2;
+      --green: #10d98a;
+      --red: #f43f5e;
+      --yellow: #fbbf24;
+      --text: #e8eaf6;
+      --text-muted: #FFFFFF;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; }
+    
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .scanner-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .scanner-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 250px;
+      height: 250px;
+      border: 3px solid var(--green);
+      border-radius: 16px;
+      box-shadow: 
+        0 0 0 9999px rgba(0, 0, 0, 0.7),
+        inset 0 0 0 3px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 
+        0 0 0 9999px rgba(0, 0, 0, 0.7),
+        inset 0 0 0 3px var(--green),
+        0 0 20px rgba(16, 217, 138, 0.5);
+      }
+      50% { box-shadow: 
+        0 0 0 9999px rgba(0, 0, 0, 0.7),
+        inset 0 0 0 3px var(--green),
+        0 0 40px rgba(16, 217, 138, 0.8);
+      }
+    }
+
+    .scanner-corner {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border: 3px solid var(--green);
+    }
+    .scanner-corner.top-left { top: 50%; left: 50%; transform: translate(calc(-125px - 15px), calc(-125px - 15px)); border-right: none; border-bottom: none; border-radius: 16px 0 0 0; }
+    .scanner-corner.top-right { top: 50%; right: 50%; transform: translate(calc(125px + 15px), calc(-125px - 15px)); border-left: none; border-bottom: none; border-radius: 0 16px 0 0; }
+    .scanner-corner.bottom-left { bottom: 50%; left: 50%; transform: translate(calc(-125px - 15px), calc(125px + 15px)); border-right: none; border-top: none; border-radius: 0 0 0 16px; }
+    .scanner-corner.bottom-right { bottom: 50%; right: 50%; transform: translate(calc(125px + 15px), calc(125px + 15px)); border-left: none; border-top: none; border-radius: 0 0 16px 0; }
+
+    .scanner-info {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, calc(-50% - 140px));
+      text-align: center;
+      color: var(--text);
+      font-size: 0.9rem;
+      z-index: 10;
+    }
+
+    .scanner-info-bottom {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      z-index: 10;
+    }
+
+    .scanner-status {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 70px;
+    }
+
+    .status-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .status-text {
+      flex: 1;
+      font-size: 0.85rem;
+    }
+
+    .status-text .label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .status-text .value {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(16, 217, 138, 0.2);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-screen {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.1), rgba(244, 63, 94, 0.05));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 100;
+      text-align: center;
+    }
+
+    .error-screen.show {
+      display: flex;
+    }
+
+    .error-icon {
+      font-size: 3rem;
+      color: var(--red);
+      margin-bottom: 16px;
+    }
+
+    .error-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .error-message {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+
+    .error-button {
+      background: var(--red);
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .error-button:hover {
+      background: #e11d48;
+    }
+
+    .permission-request {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .permission-icon {
+      font-size: 3rem;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .permission-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .permission-text {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    @media (max-height: 600px) {
+      .scanner-overlay {
+        width: 180px;
+        height: 180px;
+      }
+      .scanner-corner { width: 20px; height: 20px; }
+      .scanner-corner.top-left { transform: translate(calc(-90px - 10px), calc(-90px - 10px)); }
+      .scanner-corner.top-right { transform: translate(calc(90px + 10px), calc(-90px - 10px)); }
+      .scanner-corner.bottom-left { transform: translate(calc(-90px - 10px), calc(90px + 10px)); }
+      .scanner-corner.bottom-right { transform: translate(calc(90px + 10px), calc(90px + 10px)); }
+    }
+  </style>
+</head>
+<body>
+<div class="scanner-container">
+  <div class="permission-request" id="permissionRequest" style="display:none;">
+    <div class="permission-icon">
+      <i class="fa-solid fa-camera"></i>
+    </div>
+    <h2 class="permission-title">Acesso à Câmera</h2>
+    <p class="permission-text">
+      Este aplicativo precisa acessar sua câmera para escanear QR Codes.<br>
+      Por favor, conceda permissão quando solicitado.
+    </p>
+  </div>
+
+  <video id="video" playsinline autoplay muted></video>
+
+  <div class="scanner-overlay"></div>
+  <div class="scanner-corner top-left"></div>
+  <div class="scanner-corner top-right"></div>
+  <div class="scanner-corner bottom-left"></div>
+  <div class="scanner-corner bottom-right"></div>
+
+  <div class="scanner-info">
+    <i class="fa-solid fa-arrow-down" style="font-size:1.5rem;margin-bottom:8px;display:block;"></i>
+    <p>Aponte para o QR Code</p>
+  </div>
+
+  <div class="scanner-info-bottom">
+    <p id="scanStatus">Inicializando câmera...</p>
+  </div>
+
+  <div class="scanner-status">
+    <div class="status-icon" id="statusIcon">
+      <i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i>
+    </div>
+    <div class="status-text">
+      <span class="label">Status</span>
+      <span class="value" id="statusText">Preparando scanner...</span>
+    </div>
+  </div>
+
+  <div class="error-screen" id="errorScreen">
+    <div class="error-icon" id="errorIcon">
+      <i class="fa-solid fa-exclamation-circle"></i>
+    </div>
+    <h3 class="error-title" id="errorTitle">Erro</h3>
+    <p class="error-message" id="errorMessage">Algo deu errado.</p>
+    <button class="error-button" onclick="location.reload()">Tentar Novamente</button>
+  </div>
+</div>
+
+<!-- Biblioteca para decodificar QR Code -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<script>
+  const video = document.getElementById('video');
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  
+  const statusText = document.getElementById('statusText');
+  const scanStatus = document.getElementById('scanStatus');
+  const statusIcon = document.getElementById('statusIcon');
+  const errorScreen = document.getElementById('errorScreen');
+  const permissionRequest = document.getElementById('permissionRequest');
+
+  let scanning = false;
+
+  async function startScanner() {
+    try {
+      permissionRequest.style.display = 'flex';
+      statusText.textContent = 'Solicitando permissão...';
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+
+      video.srcObject = stream;
+      permissionRequest.style.display = 'none';
+      
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        statusText.textContent = 'Scanner ativo';
+        scanStatus.textContent = 'Procurando QR Code...';
+        statusIcon.innerHTML = '<i class="fa-solid fa-circle-check" style="color:var(--green);"></i>';
+        scanning = true;
+        scanQRCode();
+      };
+
+    } catch (error) {
+      showError('Permissão Negada', 'Não foi possível acessar a câmera. Verifique as permissões do navegador.');
+    }
+  }
+
+  function scanQRCode() {
+    if (!scanning) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+    if (code) {
+      handleQRCode(code.data);
+    } else {
+      requestAnimationFrame(scanQRCode);
+    }
+  }
+
+  function handleQRCode(data) {
+    scanning = false;
+    statusText.textContent = 'QR Code detectado!';
+    statusIcon.innerHTML = '<i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i>';
+    scanStatus.textContent = 'Processando...';
+
+    // Extrair ID e token da URL
+    try {
+      const url = new URL(data);
+      const id = url.searchParams.get('id');
+      const token = url.searchParams.get('token');
+
+      if (!id || !token) {
+        showError('QR Code Inválido', 'Parâmetros ausentes no QR Code.');
+        return;
+      }
+
+      // Redirecionar para a página de registro
+      window.location.href = `/presenca/registrar/?id=${id}&token=${token}`;
+
+    } catch (error) {
+      showError('QR Code Inválido', 'Não foi possível processar o QR Code.');
+    }
+  }
+
+  function showError(title, message) {
+    scanning = false;
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorMessage').textContent = message;
+    errorScreen.classList.add('show');
+    video.pause();
+  }
+
+  // Iniciar scanner quando a página carrega
+  window.addEventListener('load', startScanner);
+
+  // Parar scanner quando sair da página
+  window.addEventListener('beforeunload', () => {
+    scanning = false;
+    if (video.srcObject) {
+      video.srcObject.getTracks().forEach(track => track.stop());
+    }
+  });
+</script>
+</body>
+</html>

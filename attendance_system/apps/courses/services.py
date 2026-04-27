@@ -26,6 +26,12 @@ class QRCodeService:
         buffer.seek(0)
 
         filename = f'qrcode_aula_{aula.id}_{aula.token_qrcode[:8]}.png'
-        aula.qrcode_imagem.save(filename, ContentFile(buffer.read()), save=True)
+        
+        # Salvar a imagem corretamente
+        aula.qrcode_imagem.save(
+            filename, 
+            ContentFile(buffer.getvalue()), 
+            save=True
+        )
 
         return aula.qrcode_imagem.path

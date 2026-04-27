@@ -175,7 +175,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # QR Code settings
 QR_CODE_DIR = BASE_DIR / 'media' / 'qrcodes'
-SYSTEM_BASE_URL = config('SYSTEM_BASE_URL', default='https://sistema.edu')
+SYSTEM_BASE_URL = config('SYSTEM_BASE_URL', default='http://localhost:8000')
 
 # University network IP ranges (CIDR notation)
 UNIVERSITY_IP_RANGES = config(
@@ -191,6 +191,13 @@ CELERY_TASK_SERIALIZER = 'json'
 
 # Email (development)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Cloudflare Tunnel (DESENVOLVIMENTO)
+CSRF_TRUSTED_ORIGINS = ['https://*.trycloudflare.com']
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Security settings for production
 if not DEBUG:

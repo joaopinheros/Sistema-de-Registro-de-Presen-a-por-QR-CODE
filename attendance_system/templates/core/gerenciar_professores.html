@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar Professores — UFVJM QR{% endblock %}
+{% block topbar_title %}Professores{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+  <div class="card">
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-user-tie" style="color:var(--accent);font-size:1.1rem;"></i>
+        <span class="card-title">Gerenciar Professores</span>
+        <span class="badge badge-blue" style="margin-left:auto;">{{ total }} professor{{ total|pluralize }}</span>
+      </div>
+      <a href="/admin/accounts/professor/add/" class="btn btn-primary btn-sm" target="_blank">
+        <i class="fa-solid fa-user-plus"></i> Novo Professor
+      </a>
+    </div>
+
+    {% if professores %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>E-mail</th>
+            <th>Departamento</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for prof in professores %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="user-avatar" style="width:28px;height:28px;font-size:.75rem;">{{ prof.user.first_name|first|upper }}{{ prof.user.last_name|first|upper }}</div>
+                <span>{{ prof.user.get_full_name }}</span>
+              </div>
+            </td>
+            <td>{{ prof.user.email }}</td>
+            <td>{{ prof.departamento|default:"-" }}</td>
+            <td>
+              {% if prof.user.is_active %}
+                <span class="badge badge-green">Ativo</span>
+              {% else %}
+                <span class="badge badge-red">Inativo</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex;gap:6px;">
+                <a href="/admin/accounts/professor/{{ prof.id }}/change/" class="btn btn-outline btn-sm" target="_blank">
+                  <i class="fa-solid fa-edit"></i> Editar
+                </a>
+                <a href="/admin/accounts/professor/{{ prof.id }}/delete/" class="btn btn-danger btn-sm" target="_blank" onclick="return confirm('Tem certeza?')">
+                  <i class="fa-solid fa-trash"></i> Deletar
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-regular fa-user-slash"></i>
+      <p>Nenhum professor cadastrado ainda.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

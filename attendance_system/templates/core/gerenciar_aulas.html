@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Gerenciar Aulas — UFVJM QR{% endblock %}
+{% block topbar_title %}Aulas{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+  <div class="card">
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-chalkboard-user" style="color:var(--accent);font-size:1.1rem;"></i>
+        <span class="card-title">Gerenciar Aulas</span>
+        <span class="badge badge-blue" style="margin-left:auto;">{{ total }} aula{{ total|pluralize }}</span>
+      </div>
+      <a href="/admin/courses/aula/add/" class="btn btn-primary btn-sm" target="_blank">
+        <i class="fa-solid fa-plus"></i> Nova Aula
+      </a>
+    </div>
+
+    {% if aulas %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Disciplina</th>
+            <th>Data</th>
+            <th>Horário</th>
+            <th>Sala</th>
+            <th>Status</th>
+            <th>QR Code</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for aula in aulas %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-book" style="color:var(--accent);"></i>
+                <div>
+                  <strong>{{ aula.disciplina.codigo }}</strong><br>
+                  <span style="font-size:.7rem;color:var(--text-muted);">{{ aula.disciplina.nome }}</span>
+                </div>
+              </div>
+            </td>
+            <td>{{ aula.data|date:"d/m/Y" }}</td>
+            <td>
+              <code style="font-size:.75rem;background:var(--surface2);padding:2px 6px;border-radius:4px;">
+                {{ aula.horario_inicio|time:"H:i" }} – {{ aula.horario_fim|time:"H:i" }}
+              </code>
+            </td>
+            <td>{{ aula.sala.nome }}</td>
+            <td>
+              {% if aula.ativa %}
+                <span class="badge badge-green">Ativa</span>
+              {% else %}
+                <span class="badge badge-red">Inativa</span>
+              {% endif %}
+            </td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="toggleQRModal({{ aula.id }}, '{{ aula.disciplina.codigo }}', '{{ aula.data|date:'d/m/Y' }}')">
+                <i class="fa-solid fa-qrcode"></i> Ver QR
+              </button>
+            </td>
+            <td>
+              <div style="display:flex;gap:6px;">
+                <a href="/admin/courses/aula/{{ aula.id }}/change/" class="btn btn-outline btn-sm" target="_blank">
+                  <i class="fa-solid fa-edit"></i> Editar
+                </a>
+                <a href="/admin/courses/aula/{{ aula.id }}/delete/" class="btn btn-danger btn-sm" target="_blank" onclick="return confirm('Tem certeza?')">
+                  <i class="fa-solid fa-trash"></i> Deletar
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-regular fa-calendar"></i>
+      <p>Nenhuma aula cadastrada ainda.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal QR Code -->
+<div id="qrModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px;max-width:500px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <h3 style="font-family:var(--font-head);font-size:1.1rem;font-weight:700;">QR Code da Aula</h3>
+      <button onclick="closeQRModal()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    
+    <div id="qrContent" style="text-align:center;">
+      <p style="color:var(--text-muted);margin-bottom:16px;font-size:.85rem;" id="qrInfo"></p>
+      
+      <div id="qrImageContainer" style="margin:24px 0;min-height:250px;display:flex;align-items:center;justify-content:center;">
+        <div style="text-align:center;">
+          <div style="font-size:1.5rem;margin-bottom:8px;">
+            <i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i>
+          </div>
+          <p style="color:var(--text-muted);font-size:.85rem;">Gerando QR Code...</p>
+        </div>
+      </div>
+
+      <button onclick="downloadQR()" class="btn btn-primary" style="width:100%;justify-content:center;">
+        <i class="fa-solid fa-download"></i> Baixar QR Code
+      </button>
+      
+      <button onclick="printQR()" class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;">
+        <i class="fa-solid fa-print"></i> Imprimir
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<script>
+  let currentAulaId = null;
+  let currentQRImage = null;
+
+  function toggleQRModal(aulaId, codigo, data) {
+    currentAulaId = aulaId;
+    const modal = document.getElementById('qrModal');
+    const info = document.getElementById('qrInfo');
+    const container = document.getElementById('qrImageContainer');
+    
+    info.textContent = `${codigo} — ${data}`;
+    container.innerHTML = '<div style="text-align:center;"><div style="font-size:1.5rem;margin-bottom:8px;"><i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i></div><p style="color:var(--text-muted);font-size:.85rem;">Gerando QR Code...</p></div>';
+    
+    modal.style.display = 'flex';
+    generateQRCode(aulaId);
+  }
+
+  function closeQRModal() {
+    document.getElementById('qrModal').style.display = 'none';
+  }
+
+  function generateQRCode(aulaId) {
+    const formData = new FormData();
+    formData.append('aula_id', aulaId);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]')?.value || '');
+    
+    fetch(window.location.href, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      const container = document.getElementById('qrImageContainer');
+      if (data.success && data.qrcode_url) {
+        currentQRImage = data.qrcode_url;
+        container.innerHTML = `<img src="${data.qrcode_url}" alt="QR Code" style="max-width:250px;border-radius:8px;"/>`;
+      } else {
+        container.innerHTML = `<div style="text-align:center;color:var(--red);"><i class="fa-solid fa-exclamation-circle" style="font-size:2rem;margin-bottom:8px;display:block;"></i><p>${data.message || 'Erro ao gerar QR Code'}</p></div>`;
+      }
+    })
+    .catch(error => {
+      const container = document.getElementById('qrImageContainer');
+      container.innerHTML = `<div style="text-align:center;color:var(--red);"><i class="fa-solid fa-exclamation-circle" style="font-size:2rem;margin-bottom:8px;display:block;"></i><p>Erro: ${error.message}</p></div>`;
+    });
+  }
+
+  function downloadQR() {
+    if (currentQRImage) {
+      const link = document.createElement('a');
+      link.href = currentQRImage;
+      link.download = `qrcode_aula_${currentAulaId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }
+
+  function printQR() {
+    if (currentQRImage) {
+      const printWindow = window.open(currentQRImage, '_blank');
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    }
+  }
+
+  // Fechar modal clicando fora
+  document.getElementById('qrModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeQRModal();
+  });
+</script>
+
+<!-- CSRF Token (necessário pra POST) -->
+{% csrf_token %}
+{% endblock %}

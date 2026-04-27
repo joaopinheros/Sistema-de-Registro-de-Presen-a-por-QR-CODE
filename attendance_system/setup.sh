@@ -25,7 +25,7 @@ pip install --quiet -r requirements.txt gunicorn
 if [ ! -f ".env" ]; then
   echo "[3/6] Criando arquivo .env a partir do exemplo..."
   cp .env.example .env
-  echo "  ⚠  Edite o arquivo .env com suas configurações antes de continuar."
+  echo "  ⚠  IMPORTANTE: Configure o banco de dados no arquivo .env antes de rodar novamente o script."
 else
   echo "[3/6] Arquivo .env já existe."
 fi

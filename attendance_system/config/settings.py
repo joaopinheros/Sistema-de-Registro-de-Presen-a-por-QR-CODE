@@ -180,7 +180,8 @@ SYSTEM_BASE_URL = config('SYSTEM_BASE_URL', default='http://localhost:8000')
 # University network IP ranges (CIDR notation)
 UNIVERSITY_IP_RANGES = config(
     'UNIVERSITY_IP_RANGES',
-    default='10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'
+#    default='177.74.237.209,127.0.0.1,10.0.0.0/8,192.168.0.0/16,200.131.0.0/16'
+     default='177.74.237.209,127.0.0.1,10.0.0.0/8,192.168.0.0/16,200.131.0.0/16'
 ).split(',')
 
 # Celery / RabbitMQ

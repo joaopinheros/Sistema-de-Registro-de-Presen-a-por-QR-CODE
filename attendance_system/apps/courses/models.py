@@ -8,9 +8,10 @@ from apps.accounts.models import Professor
 class Sala(models.Model):
     nome = models.CharField(max_length=100, verbose_name='Nome da Sala')
     predio = models.CharField(max_length=100, verbose_name='Prédio')
-    latitude = models.DecimalField(max_digits=10, decimal_places=8, verbose_name='Latitude')
-    longitude = models.DecimalField(max_digits=11, decimal_places=8, verbose_name='Longitude')
-    raio_permitido = models.PositiveIntegerField(default=50, verbose_name='Raio Permitido (metros)')
+    latitude = models.DecimalField(max_digits=30, decimal_places=20, verbose_name='Latitude')
+    longitude = models.DecimalField(max_digits=30, decimal_places=20, verbose_name='Longitude')
+#    raio_permitido = models.PositiveIntegerField(default=50, verbose_name='Raio Permitido (metros)')
+    raio_permitido = models.PositiveIntegerField(default=10000, verbose_name='Raio Permitido (metros)')
     capacidade = models.PositiveIntegerField(default=40, verbose_name='Capacidade')
     ativa = models.BooleanField(default=True, verbose_name='Ativa')
 

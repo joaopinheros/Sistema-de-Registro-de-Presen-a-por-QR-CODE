@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_http_methods
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 from apps.courses.models import Aula
 from apps.attendance.models import Presenca
 from apps.attendance.validators import AttendanceValidator, get_client_ip
@@ -13,19 +14,11 @@ import json
 
 @require_GET
 def presenca_scanner(request):
-    """
-    Scanner page - shows camera interface to scan QR Code.
-    URL: /presenca/
-    """
     return render(request, 'attendance/scanner_qr.html')
 
 
 @require_GET
 def presenca_scan(request):
-    """
-    Landing page when a student scans a QR Code.
-    URL: /presenca/registrar?id=<aula_id>&token=<token>
-    """
     aula_id = request.GET.get('id')
     token = request.GET.get('token')
 
@@ -53,18 +46,13 @@ def presenca_scan(request):
 @login_required
 @require_http_methods(["POST"])
 def registrar_presenca_ajax(request):
-    """
-    AJAX endpoint to register attendance with geolocation.
-    POST /presenca/registrar-ajax/
-    """
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'success': False, 'error': 'Dados inválidos'}, status=400)
 
     user = request.user
-    
-    # Verificar se é aluno
+
     if not user.is_student:
         return JsonResponse({
             'success': False,
@@ -82,7 +70,6 @@ def registrar_presenca_ajax(request):
             'error': 'Parâmetros incompletos.'
         }, status=400)
 
-    # Validar aula
     try:
         aula = Aula.objects.get(id=aula_id, ativa=True)
     except Aula.DoesNotExist:
@@ -91,21 +78,21 @@ def registrar_presenca_ajax(request):
             'error': 'Aula não encontrada ou inativa.'
         }, status=404)
 
-    # Validar token
     if aula.token_qrcode != token:
         return JsonResponse({
             'success': False,
             'error': 'QR Code inválido ou expirado.'
         }, status=403)
 
-    # Verificar duplicata
-    if Presenca.objects.filter(aluno=user.student_profile, aula=aula).exists():
+    # Bloqueia só se já tiver PRESENTE
+    if Presenca.objects.filter(
+        aluno=user.student_profile, aula=aula, status=Presenca.Status.PRESENTE
+    ).exists():
         return JsonResponse({
             'success': False,
             'error': 'Presença já registrada para esta aula.'
         }, status=409)
 
-    # Validar presença (IP, geolocalização, etc)
     validator = AttendanceValidator(
         request=request,
         aula=aula,
@@ -115,41 +102,59 @@ def registrar_presenca_ajax(request):
     )
 
     if validator.run():
-        # Registrar presença com sucesso
-        presenca = Presenca.objects.create(
-            aluno=user.student_profile,
-            aula=aula,
-            ip_registrado=validator.ip,
-            latitude=latitude,
-            longitude=longitude,
-            status=Presenca.Status.PRESENTE,
-            validado_rede=validator.validado_rede,
-            validado_geo=validator.validado_geo,
-        )
+        try:
+            presenca = Presenca.objects.get(aluno=user.student_profile, aula=aula)
+            presenca.ip_registrado = validator.ip
+            presenca.latitude = latitude
+            presenca.longitude = longitude
+            presenca.status = Presenca.Status.PRESENTE
+            presenca.motivo_negacao = ''
+            presenca.validado_rede = validator.validado_rede
+            presenca.validado_geo = validator.validado_geo
+            presenca.horario_registro = timezone.now()
+            presenca.save()
+        except Presenca.DoesNotExist:
+            presenca = Presenca.objects.create(
+                aluno=user.student_profile,
+                aula=aula,
+                ip_registrado=validator.ip,
+                latitude=latitude,
+                longitude=longitude,
+                status=Presenca.Status.PRESENTE,
+                validado_rede=validator.validado_rede,
+                validado_geo=validator.validado_geo,
+            )
         log_action(user, 'PRESENÇA_REGISTRADA', f'Aula ID {aula.id}', request)
-        
         return JsonResponse({
             'success': True,
             'message': 'Presença registrada com sucesso!',
             'data': PresencaSerializer(presenca).data
         }, status=201)
     else:
-        # Registrar presença como negada
-        Presenca.objects.get_or_create(
-            aluno=user.student_profile,
-            aula=aula,
-            defaults={
-                'ip_registrado': validator.ip,
-                'latitude': latitude,
-                'longitude': longitude,
-                'status': Presenca.Status.NEGADO,
-                'motivo_negacao': '; '.join(validator.errors),
-                'validado_rede': validator.validado_rede,
-                'validado_geo': validator.validado_geo,
-            }
-        )
+        try:
+            presenca = Presenca.objects.get(aluno=user.student_profile, aula=aula)
+            presenca.ip_registrado = validator.ip
+            presenca.latitude = latitude
+            presenca.longitude = longitude
+            presenca.status = Presenca.Status.NEGADO
+            presenca.motivo_negacao = '; '.join(validator.errors)
+            presenca.validado_rede = validator.validado_rede
+            presenca.validado_geo = validator.validado_geo
+            presenca.horario_registro = timezone.now()
+            presenca.save()
+        except Presenca.DoesNotExist:
+            Presenca.objects.create(
+                aluno=user.student_profile,
+                aula=aula,
+                ip_registrado=validator.ip,
+                latitude=latitude,
+                longitude=longitude,
+                status=Presenca.Status.NEGADO,
+                motivo_negacao='; '.join(validator.errors),
+                validado_rede=validator.validado_rede,
+                validado_geo=validator.validado_geo,
+            )
         log_action(user, 'PRESENÇA_NEGADA', '; '.join(validator.errors), request)
-        
         return JsonResponse({
             'success': False,
             'error': 'Presença não registrada.',

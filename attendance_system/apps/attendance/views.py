@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from .models import Presenca
 from .serializers import PresencaSerializer, PresencaRegistroSerializer, PresencaUpdateSerializer
@@ -66,8 +67,10 @@ class PresencaViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
         aula = get_object_or_404(Aula, id=data['aula_id'], ativa=True)
 
-        # Check duplicate
-        if Presenca.objects.filter(aluno=user.student_profile, aula=aula).exists():
+        # Bloqueia só se já tiver PRESENTE — falha anterior não impede nova tentativa
+        if Presenca.objects.filter(
+            aluno=user.student_profile, aula=aula, status=Presenca.Status.PRESENTE
+        ).exists():
             return Response(
                 {'detail': 'Presença já registrada para esta aula.'},
                 status=status.HTTP_409_CONFLICT
@@ -82,36 +85,57 @@ class PresencaViewSet(viewsets.ModelViewSet):
         )
 
         if validator.run():
-            presenca = Presenca.objects.create(
-                aluno=user.student_profile,
-                aula=aula,
-                ip_registrado=validator.ip,
-                latitude=data.get('latitude'),
-                longitude=data.get('longitude'),
-                status=Presenca.Status.PRESENTE,
-                validado_rede=validator.validado_rede,
-                validado_geo=validator.validado_geo,
-            )
+            try:
+                presenca = Presenca.objects.get(aluno=user.student_profile, aula=aula)
+                presenca.ip_registrado = validator.ip
+                presenca.latitude = data.get('latitude')
+                presenca.longitude = data.get('longitude')
+                presenca.status = Presenca.Status.PRESENTE
+                presenca.motivo_negacao = ''
+                presenca.validado_rede = validator.validado_rede
+                presenca.validado_geo = validator.validado_geo
+                presenca.horario_registro = timezone.now()
+                presenca.save()
+            except Presenca.DoesNotExist:
+                presenca = Presenca.objects.create(
+                    aluno=user.student_profile,
+                    aula=aula,
+                    ip_registrado=validator.ip,
+                    latitude=data.get('latitude'),
+                    longitude=data.get('longitude'),
+                    status=Presenca.Status.PRESENTE,
+                    validado_rede=validator.validado_rede,
+                    validado_geo=validator.validado_geo,
+                )
             log_action(user, 'PRESENÇA_REGISTRADA', f'Aula ID {aula.id}', request)
             return Response(
                 PresencaSerializer(presenca).data,
                 status=status.HTTP_201_CREATED
             )
         else:
-            # Log denied attempt
-            Presenca.objects.get_or_create(
-                aluno=user.student_profile,
-                aula=aula,
-                defaults={
-                    'ip_registrado': validator.ip,
-                    'latitude': data.get('latitude'),
-                    'longitude': data.get('longitude'),
-                    'status': Presenca.Status.NEGADO,
-                    'motivo_negacao': '; '.join(validator.errors),
-                    'validado_rede': validator.validado_rede,
-                    'validado_geo': validator.validado_geo,
-                }
-            )
+            try:
+                presenca = Presenca.objects.get(aluno=user.student_profile, aula=aula)
+                presenca.ip_registrado = validator.ip
+                presenca.latitude = data.get('latitude')
+                presenca.longitude = data.get('longitude')
+                presenca.status = Presenca.Status.NEGADO
+                presenca.motivo_negacao = '; '.join(validator.errors)
+                presenca.validado_rede = validator.validado_rede
+                presenca.validado_geo = validator.validado_geo
+                presenca.horario_registro = timezone.now()
+                presenca.save()
+            except Presenca.DoesNotExist:
+                Presenca.objects.create(
+                    aluno=user.student_profile,
+                    aula=aula,
+                    ip_registrado=validator.ip,
+                    latitude=data.get('latitude'),
+                    longitude=data.get('longitude'),
+                    status=Presenca.Status.NEGADO,
+                    motivo_negacao='; '.join(validator.errors),
+                    validado_rede=validator.validado_rede,
+                    validado_geo=validator.validado_geo,
+                )
             log_action(user, 'PRESENÇA_NEGADA', '; '.join(validator.errors), request)
             return Response(
                 {'detail': 'Presença não registrada.', 'erros': validator.errors},

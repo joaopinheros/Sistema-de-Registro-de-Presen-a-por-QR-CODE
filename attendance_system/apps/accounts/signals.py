@@ -8,6 +8,6 @@ def create_profile(sender, instance, created, **kwargs):
     """Auto-create Student or Professor profile on user creation."""
     if created:
         if instance.role == User.Role.STUDENT:
-            Student.objects.get_or_create(user=instance, defaults={'matricula': '', 'curso': ''})
+            Student.objects.get_or_create(user=instance)
         elif instance.role == User.Role.PROFESSOR:
-            Professor.objects.get_or_create(user=instance, defaults={'departamento': ''})
+            Professor.objects.get_or_create(user=instance)

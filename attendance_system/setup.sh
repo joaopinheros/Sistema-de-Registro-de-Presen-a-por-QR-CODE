@@ -1,66 +1,137 @@
-#!/usr/bin/env bash
-# ============================================================
-#  FrequênciaQR — Script de instalação e inicialização
-#  Testado em Ubuntu 22.04 / 24.04
-# ============================================================
+#!/bin/bash
+
 set -e
 
-echo "=============================================="
-echo "  FrequênciaQR — Setup"
-echo "=============================================="
+VERDE='\033[0;32m'
+AMARELO='\033[1;33m'
+VERMELHO='\033[0;31m'
+NC='\033[0m'
 
-# 1. Python venv
-if [ ! -d ".venv" ]; then
-  echo "[1/6] Criando ambiente virtual Python..."
-  python3 -m venv .venv
+echo -e "${VERDE}========================================${NC}"
+echo -e "${VERDE}   Sistema de Presença por QR Code      ${NC}"
+echo -e "${VERDE}   Setup automático                     ${NC}"
+echo -e "${VERDE}========================================${NC}"
+echo ""
+
+# ── 1. Verificar Docker ──────────────────────────────────────────────────────
+echo -e "${AMARELO}[1/6] Verificando Docker...${NC}"
+if ! command -v docker &> /dev/null; then
+    echo -e "${VERMELHO}Docker não encontrado. Instale em: https://docs.docker.com/get-docker/${NC}"
+    exit 1
 fi
-source .venv/bin/activate
+if ! docker info &> /dev/null; then
+    echo -e "${VERMELHO}Docker não está rodando. Inicie o Docker e tente novamente.${NC}"
+    exit 1
+fi
+echo -e "${VERDE}✓ Docker OK${NC}"
 
-# 2. Dependências
-echo "[2/6] Instalando dependências Python..."
-pip install --quiet --upgrade pip
-pip install --quiet -r requirements.txt gunicorn
+# ── 2. Verificar Python ──────────────────────────────────────────────────────
+echo -e "${AMARELO}[2/6] Verificando Python...${NC}"
+if command -v python3 &> /dev/null; then
+    PYTHON=python3
+elif command -v python &> /dev/null; then
+    PYTHON=python
+else
+    echo -e "${VERMELHO}Python não encontrado. Instale Python 3.10+ e tente novamente.${NC}"
+    exit 1
+fi
+echo -e "${VERDE}✓ Python OK ($($PYTHON --version))${NC}"
 
-# 3. .env
+# ── 3. Criar .env se não existir ─────────────────────────────────────────────
+echo -e "${AMARELO}[3/6] Configurando .env...${NC}"
 if [ ! -f ".env" ]; then
-  echo "[3/6] Criando arquivo .env a partir do exemplo..."
-  cp .env.example .env
-  echo "  ⚠  IMPORTANTE: Configure o banco de dados no arquivo .env antes de rodar novamente o script."
+    cp .env.example .env 2>/dev/null || cat > .env << 'EOF'
+SECRET_KEY=django-insecure-dev-key-apenas-para-testes-locais
+DEBUG=True
+ALLOWED_HOSTS=*
+
+DB_NAME=attendance_db
+DB_USER=postgres
+DB_PASSWORD=4790
+DB_HOST=localhost
+DB_PORT=5432
+
+REDIS_URL=redis://localhost:6379/0
+RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+
+SYSTEM_BASE_URL=http://localhost:8000
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:8000
+
+UNIVERSITY_IP_RANGES=::/0,0.0.0.0/0
+EOF
+    echo -e "${VERDE}✓ .env criado com configurações padrão${NC}"
 else
-  echo "[3/6] Arquivo .env já existe."
+    echo -e "${VERDE}✓ .env já existe${NC}"
 fi
 
-# 4. Banco de dados
-echo "[4/6] Aplicando migrações..."
-if python manage.py migrate --run-syncdb; then
-  echo "Banco configurado com sucesso."
-else
-  echo "Erro ao conectar no banco. Verifique o arquivo .env."
-  exit 1
+# ── 4. Subir banco e redis com Docker ────────────────────────────────────────
+echo -e "${AMARELO}[4/6] Subindo banco de dados e Redis...${NC}"
+docker compose up -d db redis
+
+echo -n "   Aguardando PostgreSQL ficar pronto"
+for i in $(seq 1 30); do
+    if docker compose exec -T db pg_isready -U postgres &> /dev/null; then
+        echo -e " ${VERDE}✓${NC}"
+        break
+    fi
+    echo -n "."
+    sleep 2
+    if [ $i -eq 30 ]; then
+        echo -e " ${VERMELHO}timeout${NC}"
+        echo -e "${VERMELHO}Banco demorou demais para responder. Tente rodar 'docker compose up -d' manualmente.${NC}"
+        exit 1
+    fi
+done
+
+# ── 5. Criar venv e instalar dependências ────────────────────────────────────
+echo -e "${AMARELO}[5/6] Instalando dependências Python...${NC}"
+if [ ! -d ".venv" ]; then
+    $PYTHON -m venv .venv
+    echo -e "${VERDE}✓ Virtualenv criado${NC}"
 fi
 
-# 5. Dados demo
-echo "[5/6] Inserindo dados de demonstração..."
-python manage.py seed_demo
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+    VENV_PYTHON=".venv/Scripts/python"
+    VENV_PIP=".venv/Scripts/pip"
+else
+    VENV_PYTHON=".venv/bin/python"
+    VENV_PIP=".venv/bin/pip"
+fi
 
-# 6. Estáticos
-echo "[6/6] Coletando arquivos estáticos..."
-python manage.py collectstatic --noinput
+$VENV_PIP install --quiet --upgrade pip
+$VENV_PIP install --quiet -r requirements.txt
+echo -e "${VERDE}✓ Dependências instaladas${NC}"
+
+# ── 6. Migrations, static e superuser ────────────────────────────────────────
+echo -e "${AMARELO}[6/6] Preparando banco de dados...${NC}"
+mkdir -p static staticfiles media
+
+$VENV_PYTHON manage.py migrate --run-syncdb 2>&1 | tail -3
+echo -e "${VERDE}✓ Migrations aplicadas${NC}"
+
+$VENV_PYTHON manage.py collectstatic --noinput --clear -v 0 2>/dev/null || true
+echo -e "${VERDE}✓ Static files coletados${NC}"
+
+# Criar superuser padrão se não existir
+$VENV_PYTHON manage.py shell << 'PYEOF' 2>/dev/null
+from django.contrib.auth import get_user_model
+User = get_user_model()
+if not User.objects.filter(username='admin').exists():
+    User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
+    print('Superuser criado: admin / admin123')
+else:
+    print('Superuser admin já existe')
+PYEOF
 
 echo ""
-echo "=============================================="
-echo "  ✅  Instalação concluída!"
-echo "=============================================="
+echo -e "${VERDE}========================================${NC}"
+echo -e "${VERDE}   Setup concluído com sucesso!         ${NC}"
+echo -e "${VERDE}========================================${NC}"
 echo ""
-echo "  Para iniciar o servidor de desenvolvimento:"
-echo "    source .venv/bin/activate"
-echo "    python manage.py runserver"
+echo -e "  Para rodar o servidor:"
+echo -e "  ${AMARELO}.venv/bin/python manage.py runserver${NC}"
 echo ""
-echo "  Credenciais padrão:"
-echo "    Admin     → admin@sistema.edu / Admin@1234"
-echo "    Professor → prof@sistema.edu  / Prof@1234"
-echo "    Aluno     → aluno@sistema.edu / Aluno@1234"
-echo ""
-echo "  Para subir com Docker Compose:"
-echo "    docker compose up --build"
+echo -e "  Acesse: ${VERDE}http://localhost:8000${NC}"
+echo -e "  Admin:  ${VERDE}http://localhost:8000/admin${NC}"
+echo -e "  Login:  ${AMARELO}admin / admin123${NC}"
 echo ""

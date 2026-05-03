@@ -42,7 +42,7 @@ class User(AbstractUser):
 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
-    matricula = models.CharField(max_length=20, unique=True, verbose_name='Matrícula')
+    matricula = models.CharField(max_length=20, unique=True ,verbose_name='Matrícula')
     curso = models.CharField(max_length=100, verbose_name='Curso')
 
     class Meta:

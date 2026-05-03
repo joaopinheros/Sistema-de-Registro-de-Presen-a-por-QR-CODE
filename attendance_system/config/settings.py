@@ -85,19 +85,35 @@ DATABASES = {
     }
 }
 
-# Cache with Redis
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': config('REDIS_URL', default='redis://localhost:6379/0'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+# Cache — tenta Redis, cai pro banco se não tiver disponível
+REDIS_URL = config('REDIS_URL', default='redis://localhost:6380/0')
+
+try:
+    import redis as _redis
+    _r = _redis.from_url(REDIS_URL, socket_connect_timeout=1)
+    _r.ping()
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'SOCKET_CONNECT_TIMEOUT': 2,
+                'SOCKET_TIMEOUT': 2,
+                'IGNORE_EXCEPTIONS': True,
+            }
         }
     }
-}
-
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    SESSION_CACHE_ALIAS = 'default'
+except Exception:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'django_cache',
+        }
+    }
+    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 # Auth
 AUTH_USER_MODEL = 'accounts.User'
@@ -165,7 +181,7 @@ USE_TZ = True
 # Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
@@ -180,20 +196,19 @@ SYSTEM_BASE_URL = config('SYSTEM_BASE_URL', default='http://localhost:8000')
 # University network IP ranges (CIDR notation)
 UNIVERSITY_IP_RANGES = config(
     'UNIVERSITY_IP_RANGES',
-#    default='177.74.237.209,127.0.0.1,10.0.0.0/8,192.168.0.0/16,200.131.0.0/16'
-     default='177.74.237.209,127.0.0.1,10.0.0.0/8,192.168.0.0/16,200.131.0.0/16'
-).split(',')
+    default='177.74.237.209,127.0.0.1,10.0.0.0/8,192.168.0.0/16,200.131.0.0/16'
+).strip().split(',')
 
 # Celery / RabbitMQ
 CELERY_BROKER_URL = config('RABBITMQ_URL', default='amqp://guest:guest@localhost:5672/')
-CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6380/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
 # Email (development)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-# Cloudflare Tunnel (DESENVOLVIMENTO)
+# Cloudflare Tunnel
 CSRF_TRUSTED_ORIGINS = ['https://*.trycloudflare.com']
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False

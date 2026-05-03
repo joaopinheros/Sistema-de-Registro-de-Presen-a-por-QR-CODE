@@ -3,7 +3,6 @@ Management command: python manage.py seed_demo
 
 Creates demo users, a classroom, discipline and a lesson for testing.
 """
-import os
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from apps.accounts.models import Student, Professor
@@ -20,50 +19,72 @@ class Command(BaseCommand):
         self.stdout.write('🌱  Seeding demo data...')
 
         # ── Superuser / Admin ──
-        if not User.objects.filter(email='admin@sistema.edu').exists():
-            admin = User.objects.create_superuser(
-                username='admin@sistema.edu',
-                email='admin@sistema.edu',
-                password='Admin@1234',
-                first_name='Admin',
-                last_name='Sistema',
-                role=User.Role.ADMIN,
-            )
+        admin_user, created = User.objects.get_or_create(
+            email='admin@sistema.edu',
+            defaults={
+                'username': 'admin@sistema.edu',
+                'first_name': 'Admin',
+                'last_name': 'Sistema',
+                'role': User.Role.ADMIN,
+                'is_staff': True,
+                'is_superuser': True,
+            }
+        )
+        if created:
+            admin_user.set_password('Admin@1234')
+            admin_user.save()
             self.stdout.write(self.style.SUCCESS('  ✔ Admin criado: admin@sistema.edu / Admin@1234'))
         else:
-            admin = User.objects.get(email='admin@sistema.edu')
+            self.stdout.write('  → Admin já existe')
 
         # ── Professor ──
-        if not User.objects.filter(email='prof@sistema.edu').exists():
-            prof_user = User.objects.create_user(
-                username='prof@sistema.edu',
-                email='prof@sistema.edu',
-                password='Prof@1234',
-                first_name='Carlos',
-                last_name='Andrade',
-                role=User.Role.PROFESSOR,
-            )
-            prof = Professor.objects.create(user=prof_user, departamento='Ciência da Computação')
+        # Signal já cria o Professor automaticamente ao criar o User
+        prof_user, created = User.objects.get_or_create(
+            email='prof@sistema.edu',
+            defaults={
+                'username': 'prof@sistema.edu',
+                'first_name': 'Carlos',
+                'last_name': 'Andrade',
+                'role': User.Role.PROFESSOR,
+            }
+        )
+        if created:
+            prof_user.set_password('Prof@1234')
+            prof_user.save()
             self.stdout.write(self.style.SUCCESS('  ✔ Professor criado: prof@sistema.edu / Prof@1234'))
         else:
-            prof = Professor.objects.get(user__email='prof@sistema.edu')
+            self.stdout.write('  → Professor já existe')
+
+        # Garante que o perfil existe e atualiza departamento
+        prof, _ = Professor.objects.get_or_create(user=prof_user)
+        if not prof.departamento:
+            prof.departamento = 'Ciência da Computação'
+            prof.save()
 
         # ── Student ──
-        if not User.objects.filter(email='aluno@sistema.edu').exists():
-            aluno_user = User.objects.create_user(
-                username='aluno@sistema.edu',
-                email='aluno@sistema.edu',
-                password='Aluno@1234',
-                first_name='Maria',
-                last_name='Silva',
-                role=User.Role.STUDENT,
-            )
-            Student.objects.create(
-                user=aluno_user,
-                matricula='2024001',
-                curso='Ciência da Computação',
-            )
+        # Signal já cria o Student automaticamente ao criar o User
+        aluno_user, created = User.objects.get_or_create(
+            email='aluno@sistema.edu',
+            defaults={
+                'username': 'aluno@sistema.edu',
+                'first_name': 'Maria',
+                'last_name': 'Silva',
+                'role': User.Role.STUDENT,
+            }
+        )
+        if created:
+            aluno_user.set_password('Aluno@1234')
+            aluno_user.save()
             self.stdout.write(self.style.SUCCESS('  ✔ Aluno criado: aluno@sistema.edu / Aluno@1234'))
+        else:
+            self.stdout.write('  → Aluno já existe')
+
+        # Garante que o perfil existe e atualiza matrícula/curso
+        aluno, _ = Student.objects.get_or_create(user=aluno_user)
+        if not aluno.matricula:
+            aluno.matricula = '2024001'
+            aluno.curso = 'Ciência da Computação'
+            aluno.save()
 
         # ── Sala ──
         sala, _ = Sala.objects.get_or_create(
@@ -72,7 +93,7 @@ class Command(BaseCommand):
                 'predio': 'Bloco A',
                 'latitude': -19.9167,
                 'longitude': -43.9345,
-                'raio_permitido': 50,
+                'raio_permitido': 10000,
                 'capacidade': 30,
             }
         )
@@ -95,7 +116,7 @@ class Command(BaseCommand):
             data=date.today(),
             defaults={
                 'horario_inicio': time(8, 0),
-                'horario_fim': time(10, 0),
+                'horario_fim': time(23, 59),
                 'descricao': 'Aula demo — criada pelo seed',
             }
         )
@@ -107,9 +128,12 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f'  ⚠ QR Code não gerado: {e}'))
             self.stdout.write(self.style.SUCCESS(f'  ✔ Aula criada para hoje (ID={aula.id})'))
             self.stdout.write(f'     URL presença: {aula.presenca_url}')
+        else:
+            self.stdout.write(f'  → Aula de hoje já existe (ID={aula.id})')
+            self.stdout.write(f'     URL presença: {aula.presenca_url}')
 
         self.stdout.write(self.style.SUCCESS('\n✅  Seed concluído!'))
         self.stdout.write('\nCredenciais:')
-        self.stdout.write('  Admin    → admin@sistema.edu / Admin@1234')
+        self.stdout.write('  Admin     → admin@sistema.edu / Admin@1234')
         self.stdout.write('  Professor → prof@sistema.edu  / Prof@1234')
-        self.stdout.write('  Aluno    → aluno@sistema.edu / Aluno@1234')
+        self.stdout.write('  Aluno     → aluno@sistema.edu / Aluno@1234')

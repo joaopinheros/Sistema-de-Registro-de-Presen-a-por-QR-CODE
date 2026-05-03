@@ -357,8 +357,8 @@
 
       {% if user.is_student %}
       <div class="nav-section-label">Frequência</div>
-      <a href="/api/attendance/?format=json" class="nav-item {% block nav_minhas_presencas %}{% endblock %}">
-        <i class="fa-solid fa-calendar-check"></i> Minhas Presenças
+      <a href="/dashboard/presencas/" class="nav-item {% block nav_minhas_presencas %}{% endblock %}">
+      <i class="fa-solid fa-calendar-check"></i> Minhas Presenças
       </a>
       {% endif %}
 

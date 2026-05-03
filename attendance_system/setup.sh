@@ -40,7 +40,7 @@ echo -e "${VERDE}✓ Python OK ($($PYTHON --version))${NC}"
 # ── 3. Criar .env se não existir ─────────────────────────────────────────────
 echo -e "${AMARELO}[3/6] Configurando .env...${NC}"
 if [ ! -f ".env" ]; then
-    cp .env.example .env 2>/dev/null || cat > .env << 'EOF'
+    cat > .env << 'EOF'
 SECRET_KEY=django-insecure-dev-key-apenas-para-testes-locais
 DEBUG=True
 ALLOWED_HOSTS=*
@@ -51,7 +51,7 @@ DB_PASSWORD=4790
 DB_HOST=localhost
 DB_PORT=5432
 
-REDIS_URL=redis://localhost:6379/0
+REDIS_URL=redis://localhost:6380/0
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 
 SYSTEM_BASE_URL=http://localhost:8000
@@ -66,7 +66,8 @@ fi
 
 # ── 4. Subir banco e redis com Docker ────────────────────────────────────────
 echo -e "${AMARELO}[4/6] Subindo banco de dados e Redis...${NC}"
-docker compose up -d db
+docker compose down --remove-orphans 2>/dev/null || true
+docker compose up -d db redis
 
 echo -n "   Aguardando PostgreSQL ficar pronto"
 for i in $(seq 1 30); do
@@ -78,7 +79,7 @@ for i in $(seq 1 30); do
     sleep 2
     if [ $i -eq 30 ]; then
         echo -e " ${VERMELHO}timeout${NC}"
-        echo -e "${VERMELHO}Banco demorou demais para responder. Tente rodar 'docker compose up -d' manualmente.${NC}"
+        echo -e "${VERMELHO}Banco demorou demais. Tente: docker compose up -d${NC}"
         exit 1
     fi
 done
@@ -102,26 +103,22 @@ $VENV_PIP install --quiet --upgrade pip
 $VENV_PIP install --quiet -r requirements.txt
 echo -e "${VERDE}✓ Dependências instaladas${NC}"
 
-# ── 6. Migrations, static e superuser ────────────────────────────────────────
+# ── 6. Migrations, static e seed ─────────────────────────────────────────────
 echo -e "${AMARELO}[6/6] Preparando banco de dados...${NC}"
 mkdir -p static staticfiles media
 
 $VENV_PYTHON manage.py migrate --run-syncdb 2>&1 | tail -3
+
+# Cria tabela de cache (fallback se Redis não estiver disponível)
+$VENV_PYTHON manage.py createcachetable 2>/dev/null || true
+
 echo -e "${VERDE}✓ Migrations aplicadas${NC}"
 
 $VENV_PYTHON manage.py collectstatic --noinput --clear -v 0 2>/dev/null || true
 echo -e "${VERDE}✓ Static files coletados${NC}"
 
-# Criar superuser padrão se não existir
-$VENV_PYTHON manage.py shell << 'PYEOF' 2>/dev/null
-from django.contrib.auth import get_user_model
-User = get_user_model()
-if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
-    print('Superuser criado: admin / admin123')
-else:
-    print('Superuser admin já existe')
-PYEOF
+# Criar dados de demonstração
+$VENV_PYTHON manage.py seed_demo
 
 echo ""
 echo -e "${VERDE}========================================${NC}"
@@ -131,4 +128,11 @@ echo ""
 echo -e "  Para rodar o servidor:"
 echo -e "  ${AMARELO}.venv/bin/python manage.py runserver${NC}"
 echo ""
-
+echo -e "  Acesse: ${VERDE}http://localhost:8000${NC}"
+echo -e "  Admin:  ${VERDE}http://localhost:8000/admin${NC}"
+echo ""
+echo -e "  Credenciais:"
+echo -e "  Admin:     ${AMARELO}admin@sistema.edu / Admin@1234${NC}"
+echo -e "  Professor: ${AMARELO}prof@sistema.edu / Prof@1234${NC}"
+echo -e "  Aluno:     ${AMARELO}aluno@sistema.edu / Aluno@1234${NC}"
+echo ""

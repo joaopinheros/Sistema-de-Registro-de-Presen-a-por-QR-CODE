@@ -66,7 +66,7 @@ fi
 
 # ── 4. Subir banco e redis com Docker ────────────────────────────────────────
 echo -e "${AMARELO}[4/6] Subindo banco de dados e Redis...${NC}"
-docker compose up -d db redis
+docker compose up -d db
 
 echo -n "   Aguardando PostgreSQL ficar pronto"
 for i in $(seq 1 30); do
@@ -131,7 +131,4 @@ echo ""
 echo -e "  Para rodar o servidor:"
 echo -e "  ${AMARELO}.venv/bin/python manage.py runserver${NC}"
 echo ""
-echo -e "  Acesse: ${VERDE}http://localhost:8000${NC}"
-echo -e "  Admin:  ${VERDE}http://localhost:8000/admin${NC}"
-echo -e "  Login:  ${AMARELO}admin / admin123${NC}"
-echo ""
+

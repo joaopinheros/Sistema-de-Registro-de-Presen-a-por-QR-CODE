@@ -91,13 +91,12 @@ class Command(BaseCommand):
             nome='Lab 101',
             defaults={
                 'predio': 'Bloco A',
-                'latitude': -19.9167,
-                'longitude': -43.9345,
+                'latitude': -18.20111283477218,
+                'longitude': -43.57767167057169,
                 'raio_permitido': 10000,
                 'capacidade': 30,
-            }
-        )
-
+    }
+)
         # ── Disciplina ──
         disciplina, _ = Disciplina.objects.get_or_create(
             codigo='CC001',

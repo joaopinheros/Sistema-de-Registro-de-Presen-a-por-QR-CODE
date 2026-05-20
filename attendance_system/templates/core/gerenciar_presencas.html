@@ -58,10 +58,10 @@
                 <span class="badge badge-yellow"><i class="fa-solid fa-hourglass-end"></i> Pendente</span>
               {% endif %}
             </td>
-            {% if user.is_professor or user.is_admin %}
+            {% if user.is_admin %}
             <td>
-              <a href="/admin/attendance/presenca/{{ presenca.id }}/change/" class="btn btn-outline btn-sm" target="_blank">
-                <i class="fa-solid fa-edit"></i> Editar
+              <a href="/painel-admin/relatorios/" class="btn btn-outline btn-sm">
+                <i class="fa-solid fa-chart-bar"></i> Relatórios
               </a>
             </td>
             {% endif %}

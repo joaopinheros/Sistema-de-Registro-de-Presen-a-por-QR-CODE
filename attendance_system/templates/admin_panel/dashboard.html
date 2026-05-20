@@ -1,0 +1,205 @@
+{% extends "admin_panel/base_admin.html" %}
+{% block title %}Painel Admin — UFVJM QR{% endblock %}
+{% block topbar_title %}Painel Administrativo{% endblock %}
+{% block subnav_dashboard %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+  .chart-title { font-family:var(--font-head); font-size:.85rem; font-weight:700; margin-bottom:14px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; }
+  .media-freq-card {
+    background: linear-gradient(135deg, rgba(79,110,247,.15), rgba(139,92,246,.1));
+    border: 1px solid rgba(79,110,247,.3);
+    border-radius: var(--radius); padding: 24px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .media-freq-value { font-family:var(--font-head); font-size:2.8rem; font-weight:800; color:var(--accent); line-height:1; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:800;margin-bottom:20px;">
+  Visão Geral do Sistema
+</h2>
+
+<div class="stats-grid" style="margin-bottom:32px;">
+  <div class="stat-card blue">
+    <div class="stat-icon"><i class="fa-solid fa-users" style="color:var(--accent);"></i></div>
+    <div class="stat-label">Usuários</div>
+    <div class="stat-value">{{ stats.usuarios }}</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon"><i class="fa-solid fa-user-graduate" style="color:var(--green);"></i></div>
+    <div class="stat-label">Alunos</div>
+    <div class="stat-value">{{ stats.alunos }}</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-icon"><i class="fa-solid fa-user-tie" style="color:#a78bfa;"></i></div>
+    <div class="stat-label">Professores</div>
+    <div class="stat-value">{{ stats.professores }}</div>
+  </div>
+  <div class="stat-card yellow">
+    <div class="stat-icon"><i class="fa-solid fa-book" style="color:var(--yellow);"></i></div>
+    <div class="stat-label">Disciplinas Ativas</div>
+    <div class="stat-value">{{ stats.disciplinas }}</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-icon"><i class="fa-solid fa-door-open" style="color:var(--accent);"></i></div>
+    <div class="stat-label">Salas Ativas</div>
+    <div class="stat-value">{{ stats.salas }}</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon"><i class="fa-solid fa-chalkboard" style="color:var(--green);"></i></div>
+    <div class="stat-label">Aulas Hoje</div>
+    <div class="stat-value">{{ stats.aulas_hoje }}</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon"><i class="fa-solid fa-clipboard-check" style="color:var(--green);"></i></div>
+    <div class="stat-label">Presenças Hoje</div>
+    <div class="stat-value">{{ stats.presencas_hoje }}</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-icon"><i class="fa-solid fa-calendar-check" style="color:var(--accent);"></i></div>
+    <div class="stat-label">Presenças Total</div>
+    <div class="stat-value">{{ stats.presencas_total }}</div>
+  </div>
+</div>
+
+<!-- ── Card de média de frequência ── -->
+<div class="media-freq-card" style="margin-bottom:28px;">
+  <i class="fa-solid fa-chart-pie" style="font-size:2rem;color:var(--accent);flex-shrink:0;"></i>
+  <div>
+    <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Média Geral de Frequência</div>
+    <div style="display:flex;align-items:baseline;gap:8px;">
+      <span class="media-freq-value" id="mediaFreqValue">—</span>
+      <span style="font-size:1.2rem;color:var(--text-muted);">%</span>
+    </div>
+    <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">de todas as disciplinas ativas</div>
+  </div>
+</div>
+
+<!-- ── Gráficos ── -->
+<div style="display:grid;grid-template-columns:1fr 1.8fr;gap:24px;margin-bottom:28px;">
+
+  <!-- Gráfico C: Pizza — distribuição de usuários -->
+  <div class="chart-card">
+    <div class="chart-title"><i class="fa-solid fa-chart-pie" style="color:#a78bfa;margin-right:6px;"></i>Distribuição de Usuários</div>
+    <canvas id="chartUsuarios" height="220"></canvas>
+  </div>
+
+  <!-- Gráfico D: Barras — top 10 disciplinas por presença -->
+  <div class="chart-card">
+    <div class="chart-title"><i class="fa-solid fa-chart-bar" style="color:var(--accent);margin-right:6px;"></i>Top 10 Disciplinas — Presenças</div>
+    <canvas id="chartTopDisc" height="220"></canvas>
+  </div>
+</div>
+
+<!-- ── Tabelas ── -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <!-- Aulas recentes -->
+  <div class="card" style="padding:0;">
+    <div class="card-header" style="padding:18px 20px 0;">
+      <span class="card-title" style="font-size:.9rem;">Aulas Recentes</span>
+      <a href="/dashboard/aulas/" class="btn btn-outline btn-sm">Ver todas</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Disciplina</th><th>Data</th><th>Sala</th></tr></thead>
+        <tbody>
+          {% for aula in aulas_recentes %}
+          <tr>
+            <td><strong>{{ aula.disciplina.codigo }}</strong></td>
+            <td style="font-size:.8rem;">{{ aula.data|date:"d/m" }}</td>
+            <td style="font-size:.8rem;color:var(--text-muted);">{{ aula.sala.nome }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:24px;">Nenhuma aula cadastrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Log de atividades -->
+  <div class="card" style="padding:0;">
+    <div class="card-header" style="padding:18px 20px 0;">
+      <span class="card-title" style="font-size:.9rem;">Atividade Recente</span>
+    </div>
+    <div style="padding:0 0 8px;">
+      {% for log in audit_recente %}
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid var(--border);">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="fa-solid fa-{% if log.acao == 'login' %}right-to-bracket{% elif log.acao == 'logout' %}right-from-bracket{% else %}circle-info{% endif %}" style="font-size:.8rem;color:var(--accent);"></i>
+        </div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ log.usuario.get_full_name }}</div>
+          <div style="font-size:.7rem;color:var(--text-muted);">{{ log.acao }} · {{ log.timestamp|date:"d/m H:i" }}</div>
+        </div>
+      </div>
+      {% empty %}
+      <div style="text-align:center;color:var(--text-muted);padding:24px;font-size:.85rem;">Nenhuma atividade registrada.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#888';
+Chart.defaults.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#333';
+
+fetch('/painel-admin/dashboard/dados-graficos/')
+  .then(r => r.json())
+  .then(dados => {
+    // Card de média de frequência
+    document.getElementById('mediaFreqValue').textContent = dados.media_frequencia.toFixed(1);
+
+    // Gráfico C — Pizza: distribuição de usuários
+    new Chart(document.getElementById('chartUsuarios'), {
+      type: 'doughnut',
+      data: {
+        labels: dados.distribuicao_usuarios.labels,
+        datasets: [{
+          data: dados.distribuicao_usuarios.data,
+          backgroundColor: [
+            'rgba(34,197,94,.8)',
+            'rgba(251,191,36,.8)',
+            'rgba(79,110,247,.8)',
+          ],
+          borderWidth: 2,
+          borderColor: getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#1a1a2e',
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 14, font: { size: 12 } } },
+        },
+      },
+    });
+
+    // Gráfico D — Barras: top 10 disciplinas
+    new Chart(document.getElementById('chartTopDisc'), {
+      type: 'bar',
+      data: {
+        labels: dados.top_disciplinas.labels.length ? dados.top_disciplinas.labels : ['Sem dados'],
+        datasets: [{
+          label: 'Presenças',
+          data: dados.top_disciplinas.data.length ? dados.top_disciplinas.data : [0],
+          backgroundColor: 'rgba(79,110,247,.7)',
+          borderRadius: 6,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        indexAxis: dados.top_disciplinas.labels.length > 6 ? 'y' : 'x',
+      },
+    });
+  })
+  .catch(() => console.warn('Erro ao carregar dados dos gráficos.'));
+</script>
+{% endblock %}

@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Nova Aula — UFVJM QR{% endblock %}
+{% block topbar_title %}Nova Aula{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+  <div class="card" style="max-width:640px;margin:0 auto;">
+    <div class="card-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-plus" style="color:var(--accent);font-size:1.1rem;"></i>
+        <span class="card-title">Criar Nova Aula</span>
+      </div>
+      <a href="{% url 'gerenciar_aulas' %}" class="btn btn-outline btn-sm">
+        <i class="fa-solid fa-arrow-left"></i> Voltar
+      </a>
+    </div>
+
+    <div style="padding:24px;">
+
+      {% if errors %}
+      <div style="background:rgba(var(--red-rgb),.12);border:1px solid var(--red);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;">
+        <strong style="color:var(--red);font-size:.85rem;">Corrija os erros abaixo:</strong>
+        <ul style="margin:6px 0 0 16px;padding:0;font-size:.83rem;color:var(--red);">
+          {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <form method="post" id="formCriarAula">
+        {% csrf_token %}
+
+        <!-- Disciplina -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Disciplina *</label>
+          <select name="disciplina" required style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;">
+            <option value="">Selecione...</option>
+            {% for d in disciplinas %}
+            <option value="{{ d.id }}" {% if post.disciplina == d.id|stringformat:"s" %}selected{% endif %}>
+              {{ d.codigo }} — {{ d.nome }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Sala -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Sala *</label>
+          <select name="sala" required style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;">
+            <option value="">Selecione...</option>
+            {% for s in salas %}
+            <option value="{{ s.id }}" {% if post.sala == s.id|stringformat:"s" %}selected{% endif %}>
+              {{ s.nome }} — {{ s.predio }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Data -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Data *</label>
+          <input type="date" name="data" required value="{{ post.data }}"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;box-sizing:border-box;">
+        </div>
+
+        <!-- Horários -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div>
+            <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Início *</label>
+            <input type="time" name="horario_inicio" required value="{{ post.horario_inicio }}"
+                   style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Fim *</label>
+            <input type="time" name="horario_fim" required value="{{ post.horario_fim }}"
+                   style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;box-sizing:border-box;">
+          </div>
+        </div>
+
+        <!-- Descrição -->
+        <div style="margin-bottom:20px;">
+          <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Descrição</label>
+          <input type="text" name="descricao" maxlength="255" value="{{ post.descricao }}" placeholder="Opcional"
+                 style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;box-sizing:border-box;">
+        </div>
+
+        <!-- Geolocalização -->
+        <div style="border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-size:.85rem;font-weight:600;color:var(--text);">
+              <i class="fa-solid fa-location-dot" style="color:var(--accent);margin-right:6px;"></i>
+              Localização da Aula
+            </span>
+            <button type="button" onclick="capturarGPS()" id="btnGPS" class="btn btn-outline btn-sm">
+              <i class="fa-solid fa-crosshairs"></i> Capturar GPS
+            </button>
+          </div>
+
+          <div id="gpsStatus" style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px;">
+            Clique em "Capturar GPS" para registrar a localização atual.
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="display:block;font-size:.75rem;color:var(--text-muted);margin-bottom:4px;">Latitude</label>
+              <input type="text" name="latitude" id="inputLat" readonly value="{{ post.latitude }}"
+                     placeholder="—"
+                     style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:.8rem;box-sizing:border-box;font-family:monospace;">
+            </div>
+            <div>
+              <label style="display:block;font-size:.75rem;color:var(--text-muted);margin-bottom:4px;">Longitude</label>
+              <input type="text" name="longitude" id="inputLon" readonly value="{{ post.longitude }}"
+                     placeholder="—"
+                     style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:.8rem;box-sizing:border-box;font-family:monospace;">
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:.75rem;color:var(--text-muted);margin-bottom:4px;">Raio Permitido (metros)</label>
+            <input type="number" name="raio_permitido" id="inputRaio" min="10" max="10000"
+                   value="{{ post.raio_permitido|default:'50' }}"
+                   style="width:120px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.85rem;">
+          </div>
+        </div>
+
+        <input type="hidden" name="latitude"  id="hiddenLat">
+        <input type="hidden" name="longitude" id="hiddenLon">
+
+        <button type="submit" id="btnSubmitCriar" disabled class="btn btn-primary" style="width:100%;justify-content:center;">
+          <i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Capturando localização...
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Display inputs are read-only for UX only; remove their name to avoid duplicate keys
+  document.getElementById('inputLat').removeAttribute('name');
+  document.getElementById('inputLon').removeAttribute('name');
+
+  const btnSubmit = document.getElementById('btnSubmitCriar');
+
+  function setGpsReady(lat, lon, acc) {
+    document.getElementById('hiddenLat').value  = lat;
+    document.getElementById('hiddenLon').value  = lon;
+    document.getElementById('inputLat').value   = lat;
+    document.getElementById('inputLon').value   = lon;
+    btnSubmit.disabled = false;
+    btnSubmit.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Criar Aula';
+    document.getElementById('gpsStatus').innerHTML =
+      `<span style="color:var(--green);"><i class="fa-solid fa-circle-check"></i> GPS capturado — precisão ±${acc}m.</span>`;
+    document.getElementById('btnGPS').disabled = false;
+    document.getElementById('btnGPS').innerHTML = '<i class="fa-solid fa-rotate"></i> Recapturar GPS';
+  }
+
+  function setGpsFailed(msg) {
+    btnSubmit.disabled = false;
+    btnSubmit.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Criar Aula (sem GPS)';
+    document.getElementById('gpsStatus').innerHTML =
+      `<span style="color:var(--yellow,#f5a623);"><i class="fa-solid fa-triangle-exclamation"></i> GPS indisponível: ${msg}</span>`;
+    document.getElementById('btnGPS').disabled = false;
+    document.getElementById('btnGPS').innerHTML = '<i class="fa-solid fa-crosshairs"></i> Tentar novamente';
+  }
+
+  function capturarGPS() {
+    const btn    = document.getElementById('btnGPS');
+    const status = document.getElementById('gpsStatus');
+
+    if (!navigator.geolocation) {
+      setGpsFailed('não suportado neste navegador.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Aguardando...';
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Capturando localização...';
+    status.innerHTML = '<span style="color:var(--text-muted);">Obtendo localização...</span>';
+
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        setGpsReady(
+          pos.coords.latitude.toFixed(15),
+          pos.coords.longitude.toFixed(15),
+          pos.coords.accuracy.toFixed(0)
+        );
+      },
+      function(err) {
+        const msgs = { 1: 'Permissão negada.', 2: 'Posição indisponível.', 3: 'Tempo esgotado.' };
+        setGpsFailed(msgs[err.code] || err.message);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  // Auto-capture on first load (not on POST re-render)
+  {% if not post %}
+  capturarGPS();
+  {% endif %}
+</script>
+
+<style>
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+{% endblock %}

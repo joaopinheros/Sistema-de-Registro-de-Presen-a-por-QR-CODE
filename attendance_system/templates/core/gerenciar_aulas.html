@@ -11,9 +11,9 @@
         <span class="card-title">Gerenciar Aulas</span>
         <span class="badge badge-blue" style="margin-left:auto;">{{ total }} aula{{ total|pluralize }}</span>
       </div>
-      <a href="/admin/courses/aula/add/" class="btn btn-primary btn-sm" target="_blank">
+      <button onclick="openCriarModal()" class="btn btn-primary btn-sm">
         <i class="fa-solid fa-plus"></i> Nova Aula
-      </a>
+      </button>
     </div>
 
     {% if aulas %}
@@ -32,7 +32,7 @@
         </thead>
         <tbody>
           {% for aula in aulas %}
-          <tr>
+          <tr id="row-aula-{{ aula.id }}">
             <td>
               <div style="display:flex;align-items:center;gap:8px;">
                 <i class="fa-solid fa-book" style="color:var(--accent);"></i>
@@ -63,12 +63,14 @@
             </td>
             <td>
               <div style="display:flex;gap:6px;">
-                <a href="/admin/courses/aula/{{ aula.id }}/change/" class="btn btn-outline btn-sm" target="_blank">
-                  <i class="fa-solid fa-edit"></i> Editar
+                <a href="/painel-professor/aulas/" class="btn btn-outline btn-sm">
+                  <i class="fa-solid fa-chalkboard"></i> Painel
                 </a>
-                <a href="/admin/courses/aula/{{ aula.id }}/delete/" class="btn btn-danger btn-sm" target="_blank" onclick="return confirm('Tem certeza?')">
+                {% if request.user.is_admin or aula.disciplina.professor.user == request.user %}
+                <button onclick="deletarAula({{ aula.id }}, '{{ aula.disciplina.codigo }}')" class="btn btn-danger btn-sm">
                   <i class="fa-solid fa-trash"></i> Deletar
-                </a>
+                </button>
+                {% endif %}
               </div>
             </td>
           </tr>
@@ -85,121 +87,294 @@
   </div>
 </div>
 
-<!-- Modal QR Code -->
-<div id="qrModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px;max-width:500px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+<!-- ===== Modal: Nova Aula ===== -->
+<div id="criarModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box" style="max-width:560px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 style="font-family:var(--font-head);font-size:1.1rem;font-weight:700;">
+        <i class="fa-solid fa-plus" style="color:var(--accent);margin-right:8px;"></i>Nova Aula
+      </h3>
+      <button onclick="closeCriarModal()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div id="criarErrors" style="display:none;background:rgba(255,80,80,.12);border:1px solid var(--red,#f55);border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;font-size:.83rem;color:var(--red,#f55);"></div>
+
+    <form id="formNovaAula">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="criar">
+
+      <!-- Disciplina -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Disciplina *</label>
+        <select name="disciplina" required style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;">
+          <option value="">Selecione...</option>
+          {% for d in disciplinas %}
+          <option value="{{ d.id }}">{{ d.codigo }} — {{ d.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Sala -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Sala *</label>
+        <select name="sala" required style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;">
+          <option value="">Selecione...</option>
+          {% for s in salas %}
+          <option value="{{ s.id }}">{{ s.nome }} — {{ s.predio }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Data -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Data *</label>
+        <input type="date" name="data" required
+               style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;box-sizing:border-box;">
+      </div>
+
+      <!-- Horários -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+        <div>
+          <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Início *</label>
+          <input type="time" name="horario_inicio" required
+                 style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Fim *</label>
+          <input type="time" name="horario_fim" required
+                 style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;box-sizing:border-box;">
+        </div>
+      </div>
+
+      <!-- Raio -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Raio permitido (metros)</label>
+        <input type="number" name="raio_permitido" min="10" max="10000" value="50"
+               style="width:120px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;">
+      </div>
+
+      <!-- Descrição -->
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Descrição</label>
+        <input type="text" name="descricao" maxlength="255" placeholder="Opcional"
+               style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);font-size:.9rem;box-sizing:border-box;">
+      </div>
+
+      <button type="submit" id="btnCriarAula"
+              class="btn btn-primary" style="width:100%;justify-content:center;">
+        <i class="fa-solid fa-floppy-disk"></i> Criar Aula
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ===== Modal: QR Code ===== -->
+<div id="qrModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box" style="max-width:500px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <h3 style="font-family:var(--font-head);font-size:1.1rem;font-weight:700;">QR Code da Aula</h3>
       <button onclick="closeQRModal()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;">
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
-    
+
     <div id="qrContent" style="text-align:center;">
       <p style="color:var(--text-muted);margin-bottom:16px;font-size:.85rem;" id="qrInfo"></p>
-      
-      <div id="qrImageContainer" style="margin:24px 0;min-height:250px;display:flex;align-items:center;justify-content:center;">
-        <div style="text-align:center;">
-          <div style="font-size:1.5rem;margin-bottom:8px;">
-            <i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i>
-          </div>
-          <p style="color:var(--text-muted);font-size:.85rem;">Gerando QR Code...</p>
+
+      <div id="qrImageContainer" style="margin:24px 0;min-height:120px;display:flex;align-items:center;justify-content:center;">
+        <div style="text-align:center;color:var(--text-muted);">
+          <i class="fa-solid fa-qrcode" style="font-size:2.5rem;margin-bottom:8px;display:block;opacity:.3;"></i>
+          <p style="font-size:.85rem;">Clique em "Gerar QR Code" para visualizar.</p>
         </div>
       </div>
 
-      <button onclick="downloadQR()" class="btn btn-primary" style="width:100%;justify-content:center;">
+      <button onclick="generateQRCode(currentAulaId)" class="btn btn-primary" style="width:100%;justify-content:center;">
+        <i class="fa-solid fa-qrcode"></i> Gerar QR Code
+      </button>
+
+      <button onclick="downloadQR()" id="btnDownloadQR" class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;display:none;">
         <i class="fa-solid fa-download"></i> Baixar QR Code
       </button>
-      
-      <button onclick="printQR()" class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;">
+
+      <button onclick="printQR()" id="btnPrintQR" class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px;display:none;">
         <i class="fa-solid fa-print"></i> Imprimir
       </button>
     </div>
   </div>
 </div>
 
+{% csrf_token %}
+
 <style>
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
 
 <script>
-  let currentAulaId = null;
+  /* ── helpers ── */
+  function getCsrf() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+  }
+
+  /* ══════════════════════════════════════
+     MODAL: NOVA AULA
+  ══════════════════════════════════════ */
+
+  function openCriarModal() {
+    document.getElementById('criarErrors').style.display = 'none';
+    document.getElementById('formNovaAula').reset();
+    document.querySelector('#formNovaAula [name=action]').value = 'criar';
+    const btn = document.getElementById('btnCriarAula');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Criar Aula';
+    openModal('criarModal');
+  }
+
+  function closeCriarModal() {
+    closeModal('criarModal');
+  }
+
+  document.getElementById('formNovaAula').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const btn    = document.getElementById('btnCriarAula');
+    const errors = document.getElementById('criarErrors');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Salvando...';
+    errors.style.display = 'none';
+
+    fetch(window.location.href, {
+      method: 'POST',
+      body: new FormData(this),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        closeCriarModal();
+        location.reload();
+      } else {
+        errors.innerHTML = (data.errors || [data.message || 'Erro desconhecido'])
+          .map(e => `<div>• ${e}</div>`).join('');
+        errors.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Criar Aula';
+      }
+    })
+    .catch(() => {
+      errors.innerHTML = '<div>• Erro de conexão.</div>';
+      errors.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Criar Aula';
+    });
+  });
+
+  // Fechar clicando fora
+  document.getElementById('criarModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCriarModal();
+  });
+
+  /* ══════════════════════════════════════
+     DELETAR AULA
+  ══════════════════════════════════════ */
+  function deletarAula(aulaId, codigo) {
+    if (!confirm(`Deletar a aula de ${codigo}?\n\nEsta ação não pode ser desfeita.`)) return;
+
+    fetch(`/api/courses/aulas/${aulaId}/`, {
+      method: 'DELETE',
+      headers: { 'X-CSRFToken': getCsrf() }
+    })
+    .then(resp => {
+      if (resp.ok || resp.status === 204) {
+        const row = document.getElementById(`row-aula-${aulaId}`);
+        if (row) row.remove();
+      } else {
+        resp.json()
+          .then(d => alert(d.detail || 'Erro ao deletar aula.'))
+          .catch(() => alert('Erro ao deletar aula.'));
+      }
+    })
+    .catch(() => alert('Erro de conexão ao deletar.'));
+  }
+
+  /* ══════════════════════════════════════
+     MODAL: QR CODE
+  ══════════════════════════════════════ */
+  let currentAulaId  = null;
   let currentQRImage = null;
 
   function toggleQRModal(aulaId, codigo, data) {
-    currentAulaId = aulaId;
-    const modal = document.getElementById('qrModal');
-    const info = document.getElementById('qrInfo');
+    currentAulaId  = aulaId;
+    currentQRImage = null;
+
+    const info      = document.getElementById('qrInfo');
     const container = document.getElementById('qrImageContainer');
-    
+
     info.textContent = `${codigo} — ${data}`;
-    container.innerHTML = '<div style="text-align:center;"><div style="font-size:1.5rem;margin-bottom:8px;"><i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i></div><p style="color:var(--text-muted);font-size:.85rem;">Gerando QR Code...</p></div>';
-    
-    modal.style.display = 'flex';
-    generateQRCode(aulaId);
+    container.innerHTML = `
+      <div style="text-align:center;color:var(--text-muted);">
+        <i class="fa-solid fa-qrcode" style="font-size:2.5rem;margin-bottom:8px;display:block;opacity:.3;"></i>
+        <p style="font-size:.85rem;">Clique em "Gerar QR Code" para visualizar.</p>
+      </div>`;
+    document.getElementById('btnDownloadQR').style.display = 'none';
+    document.getElementById('btnPrintQR').style.display    = 'none';
+
+    openModal('qrModal');
   }
 
   function closeQRModal() {
-    document.getElementById('qrModal').style.display = 'none';
+    closeModal('qrModal');
   }
 
   function generateQRCode(aulaId) {
-    const formData = new FormData();
-    formData.append('aula_id', aulaId);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]')?.value || '');
-    
+    const container = document.getElementById('qrImageContainer');
+    container.innerHTML = '<div style="text-align:center;"><div style="font-size:1.5rem;margin-bottom:8px;"><i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i></div><p style="color:var(--text-muted);font-size:.85rem;">Gerando QR Code...</p></div>';
+
+    const fd = new FormData();
+    fd.append('aula_id', aulaId);
+    fd.append('csrfmiddlewaretoken', getCsrf());
+
     fetch(window.location.href, {
       method: 'POST',
-      body: formData,
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-      }
+      body: fd,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
-      const container = document.getElementById('qrImageContainer');
       if (data.success && data.qrcode_url) {
         currentQRImage = data.qrcode_url;
         container.innerHTML = `<img src="${data.qrcode_url}" alt="QR Code" style="max-width:250px;border-radius:8px;"/>`;
+        document.getElementById('btnDownloadQR').style.display = '';
+        document.getElementById('btnPrintQR').style.display    = '';
       } else {
         container.innerHTML = `<div style="text-align:center;color:var(--red);"><i class="fa-solid fa-exclamation-circle" style="font-size:2rem;margin-bottom:8px;display:block;"></i><p>${data.message || 'Erro ao gerar QR Code'}</p></div>`;
       }
     })
-    .catch(error => {
-      const container = document.getElementById('qrImageContainer');
-      container.innerHTML = `<div style="text-align:center;color:var(--red);"><i class="fa-solid fa-exclamation-circle" style="font-size:2rem;margin-bottom:8px;display:block;"></i><p>Erro: ${error.message}</p></div>`;
+    .catch(err => {
+      container.innerHTML = `<div style="text-align:center;color:var(--red);"><i class="fa-solid fa-exclamation-circle" style="font-size:2rem;margin-bottom:8px;display:block;"></i><p>Erro: ${err.message}</p></div>`;
     });
   }
 
   function downloadQR() {
-    if (currentQRImage) {
-      const link = document.createElement('a');
-      link.href = currentQRImage;
-      link.download = `qrcode_aula_${currentAulaId}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+    if (!currentQRImage) return;
+    const a = document.createElement('a');
+    a.href     = currentQRImage;
+    a.download = `qrcode_aula_${currentAulaId}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   function printQR() {
-    if (currentQRImage) {
-      const printWindow = window.open(currentQRImage, '_blank');
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    }
+    if (!currentQRImage) return;
+    const w = window.open(currentQRImage, '_blank');
+    setTimeout(() => w.print(), 500);
   }
 
-  // Fechar modal clicando fora
-  document.getElementById('qrModal')?.addEventListener('click', function(e) {
+  document.getElementById('qrModal').addEventListener('click', function(e) {
     if (e.target === this) closeQRModal();
   });
 </script>
-
-<!-- CSRF Token (necessário pra POST) -->
-{% csrf_token %}
 {% endblock %}

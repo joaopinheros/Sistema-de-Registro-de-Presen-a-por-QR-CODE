@@ -1,0 +1,123 @@
+{% extends "admin_panel/base_admin.html" %}
+{% block title %}Relatórios — Painel Admin{% endblock %}
+{% block topbar_title %}Relatórios{% endblock %}
+{% block subnav_relatorios %}active{% endblock %}
+
+{% block admin_content %}
+<h2 style="font-family:var(--font-head);font-size:1.1rem;font-weight:800;margin-bottom:20px;">
+  Relatórios de Presença
+</h2>
+
+<!-- Por disciplina -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <span class="card-title">Frequência por Disciplina</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Disciplina</th>
+          <th>Professor</th>
+          <th>Aulas</th>
+          <th>Presenças</th>
+          <th>Negadas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in disciplinas %}
+        <tr>
+          <td>
+            <div>
+              <strong style="font-size:.82rem;">{{ d.codigo }}</strong><br>
+              <span style="font-size:.72rem;color:var(--text-muted);">{{ d.nome }}</span>
+            </div>
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ d.professor.user.get_full_name }}</td>
+          <td><span class="badge badge-gray">{{ d.total_aulas }}</span></td>
+          <td><span class="badge badge-green">{{ d.total_presentes }}</span></td>
+          <td><span class="badge badge-red">{{ d.total_negados }}</span></td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5">
+            <div class="empty-state">
+              <i class="fa-solid fa-chart-bar"></i>
+              <p>Nenhuma disciplina ativa.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Presenças recentes -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Últimas Presenças Registradas</span>
+    <a href="/dashboard/presencas/" class="btn btn-outline btn-sm">Ver todas</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Aluno</th>
+          <th>Disciplina</th>
+          <th>Data / Hora</th>
+          <th>Status</th>
+          <th>Rede</th>
+          <th>Geo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in presencas_recentes %}
+        <tr>
+          <td style="font-size:.82rem;">{{ p.aluno.user.get_full_name }}</td>
+          <td>
+            <div>
+              <strong style="font-size:.78rem;">{{ p.aula.disciplina.codigo }}</strong><br>
+              <span style="font-size:.7rem;color:var(--text-muted);">{{ p.aula.data|date:"d/m/Y" }}</span>
+            </div>
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ p.horario_registro|date:"d/m H:i" }}</td>
+          <td>
+            {% if p.status == 'presente' %}
+              <span class="badge badge-green">Presente</span>
+            {% elif p.status == 'negado' %}
+              <span class="badge badge-red">Negado</span>
+            {% else %}
+              <span class="badge badge-gray">{{ p.status|capfirst }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.validado_rede %}
+              <i class="fa-solid fa-circle-check" style="color:var(--green);"></i>
+            {% else %}
+              <i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.validado_geo %}
+              <i class="fa-solid fa-circle-check" style="color:var(--green);"></i>
+            {% else %}
+              <i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6">
+            <div class="empty-state">
+              <i class="fa-solid fa-calendar-xmark"></i>
+              <p>Nenhuma presença registrada.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

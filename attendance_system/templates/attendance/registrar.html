@@ -1,171 +1,262 @@
-{% extends "base.html" %}
-{% block title %}Registrar Presença — UFVJM QR{% endblock %}
-{% block topbar_title %}Registrar Presença{% endblock %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar Presença — UFVJM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-{% block content %}
-<div class="fade-in" style="max-width:600px;margin:0 auto;">
-  
-  <!-- Loading State -->
-  <div id="loadingState" class="card" style="text-align:center;">
-    <div style="font-size:2rem;margin-bottom:16px;animation:spin 1s linear infinite;">
-      <i class="fa-solid fa-spinner"></i>
-    </div>
-    <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:8px;">
-      Processando Presença...
-    </h2>
-    <p style="color:var(--text-muted);margin-bottom:16px;">
-      Localizando sua posição...
-    </p>
-    <div style="background:var(--surface2);padding:16px;border-radius:8px;font-size:.85rem;color:var(--text-muted);">
-      <p>⏳ Aguarde enquanto validamos sua localização</p>
-    </div>
+    :root {
+      --bg:         #0d0f1a;
+      --surface:    #13162a;
+      --surface2:   #1a1e35;
+      --border:     #3FAF5A;
+      --text:       #e8eaf6;
+      --text-muted: #8b90b8;
+      --accent:     #4f6ef7;
+      --green:      #10d98a;
+      --red:        #f43f5e;
+      --radius:     12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 40px;
+    }
+
+    /* ── Cabeçalho ── */
+    .page-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .logo-sub {
+      font-size: .75rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+    }
+    .card-title i { color: var(--accent); }
+
+    /* ── Informações da aula ── */
+    .aula-box {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .aula-item label {
+      display: block;
+      font-size: .68rem;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+    .aula-item strong {
+      font-size: .93rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* ── Botão principal ── */
+    .btn-confirmar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 56px;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .01em;
+      text-decoration: none;
+      transition: filter .15s;
+    }
+    .btn-confirmar:active { filter: brightness(.88); }
+
+    /* ── Botão secundário ── */
+    .btn-voltar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 48px;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: .9rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      margin-top: 12px;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-voltar:hover { border-color: var(--text-muted); color: var(--text); }
+
+    /* ── Ícone circular ── */
+    .icon-circle {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 2.2rem;
+    }
+    .icon-circle.green { background: rgba(34,197,94,.12); color: var(--green); }
+    .icon-circle.red   { background: rgba(244,63,94,.12);  color: var(--red);   }
+
+    .result-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .result-sub {
+      font-size: .9rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 440px) {
+      .card { padding: 20px 16px; }
+      body  { padding: 20px 12px 32px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <div class="logo">UFVJM QR</div>
+    <div class="logo-sub">Sistema de Frequência</div>
   </div>
 
-  <!-- Success State -->
-  <div id="successState" class="card" style="text-align:center;display:none;">
-    <div style="font-size:3rem;margin-bottom:16px;">
-      <i class="fa-solid fa-circle-check" style="color:var(--green);"></i>
+  {% if estado == 'confirmar' %}
+  <!-- ══ TELA DE CONFIRMAÇÃO ══ -->
+  <div class="card">
+    <div class="card-title">
+      <i class="fa-solid fa-qrcode"></i> Confirmar Presença
     </div>
-    <h2 style="font-family:var(--font-head);font-size:1.3rem;font-weight:700;margin-bottom:8px;">
-      Presença Registrada! ✅
-    </h2>
-    <p style="color:var(--text-muted);margin-bottom:20px;">
-      {{ aula.disciplina.codigo }} — {{ aula.disciplina.nome }}
-    </p>
 
-    <div style="background:var(--surface2);padding:20px;border-radius:8px;margin-bottom:24px;text-align:left;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div>
-          <p style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">Data</p>
-          <p style="font-weight:600;">{{ aula.data|date:"d/m/Y" }}</p>
-        </div>
-        <div>
-          <p style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">Horário</p>
-          <p style="font-weight:600;">{{ aula.horario_inicio|time:"H:i" }} – {{ aula.horario_fim|time:"H:i" }}</p>
-        </div>
-        <div style="grid-column:1/-1;">
-          <p style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">Sala</p>
-          <p style="font-weight:600;">{{ aula.sala.nome }} — {{ aula.sala.predio }}</p>
-        </div>
+    <div class="aula-box">
+      <div class="aula-item">
+        <label>Disciplina</label>
+        <strong>{{ aula.disciplina.codigo }} — {{ aula.disciplina.nome }}</strong>
+      </div>
+      <div class="aula-item">
+        <label>Professor</label>
+        <strong>{{ aula.disciplina.professor.user.get_full_name }}</strong>
+      </div>
+      <div class="aula-item">
+        <label>Data</label>
+        <strong>{{ aula.data|date:"d/m/Y" }}</strong>
+      </div>
+      <div class="aula-item">
+        <label>Horário</label>
+        <strong>{{ aula.horario_inicio|time:"H:i" }} – {{ aula.horario_fim|time:"H:i" }}</strong>
+      </div>
+      <div class="aula-item">
+        <label>Sala</label>
+        <strong>{{ aula.sala.nome }}</strong>
       </div>
     </div>
 
-    <div style="display:flex;gap:10px;">
-      <a href="{% url 'dashboard' %}" class="btn btn-primary" style="flex:1;justify-content:center;">
-        <i class="fa-solid fa-home"></i> Voltar ao Dashboard
-      </a>
-      <a href="{% url 'presenca_scanner' %}" class="btn btn-outline" style="flex:1;justify-content:center;">
-        <i class="fa-solid fa-qrcode"></i> Escanear Outra
-      </a>
-    </div>
+    <form method="post" action="/presenca/registrar/">
+      {% csrf_token %}
+      <input type="hidden" name="aula_id" value="{{ aula.id }}">
+      <input type="hidden" name="token"   value="{{ token }}">
+      <button type="submit" class="btn-confirmar">
+        <i class="fa-solid fa-circle-check"></i> Confirmar Presença
+      </button>
+    </form>
+
+    <a href="/dashboard/" class="btn-voltar">
+      <i class="fa-solid fa-arrow-left"></i> Voltar ao Dashboard
+    </a>
   </div>
 
-  <!-- Error State -->
-  <div id="errorState" class="card" style="text-align:center;display:none;">
-    <div style="font-size:3rem;margin-bottom:16px;">
-      <i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i>
+  {% elif estado == 'sucesso' %}
+  <!-- ══ TELA DE SUCESSO ══ -->
+  <div class="card" style="text-align:center;">
+    <div class="icon-circle green">
+      <i class="fa-solid fa-circle-check"></i>
     </div>
-    <h2 style="font-family:var(--font-head);font-size:1.3rem;font-weight:700;margin-bottom:8px;color:var(--red);">
-      Presença Negada ❌
-    </h2>
-    <p style="color:var(--text-muted);margin-bottom:20px;">
-      {{ aula.disciplina.codigo }} — {{ aula.disciplina.nome }}
-    </p>
-
-    <div style="background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);padding:16px;border-radius:8px;margin-bottom:24px;">
-      <p style="color:var(--red);font-size:.9rem;margin-bottom:12px;"><strong>Motivos:</strong></p>
-      <ul id="errorList" style="list-style:none;color:var(--text-muted);font-size:.85rem;">
-      </ul>
+    <div class="result-title">Presença Registrada!</div>
+    <div class="result-sub">
+      {{ aula.disciplina.codigo }} — {{ aula.disciplina.nome }}<br>
+      {{ aula.data|date:"d/m/Y" }} &nbsp;·&nbsp;
+      {{ aula.horario_inicio|time:"H:i" }} – {{ aula.horario_fim|time:"H:i" }}
     </div>
-
-    <div style="display:flex;gap:10px;">
-      <a href="{% url 'presenca_scanner' %}" class="btn btn-primary" style="flex:1;justify-content:center;">
-        <i class="fa-solid fa-redo"></i> Tentar Novamente
-      </a>
-      <a href="{% url 'dashboard' %}" class="btn btn-outline" style="flex:1;justify-content:center;">
-        <i class="fa-solid fa-home"></i> Dashboard
-      </a>
-    </div>
+    <a href="/dashboard/" class="btn-confirmar" style="background:var(--accent);">
+      <i class="fa-solid fa-house"></i> Ir ao Dashboard
+    </a>
   </div>
 
-</div>
+  {% elif estado == 'erro' %}
+  <!-- ══ TELA DE ERRO ══ -->
+  <div class="card" style="text-align:center;">
+    <div class="icon-circle red">
+      <i class="fa-solid fa-circle-xmark"></i>
+    </div>
+    <div class="result-title" style="color:var(--red);">Presença Não Registrada</div>
+    <div class="result-sub">{{ mensagem }}</div>
+    <a href="/dashboard/" class="btn-confirmar" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);">
+      <i class="fa-solid fa-house"></i> Ir ao Dashboard
+    </a>
+  </div>
 
-<style>
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-</style>
+  {% endif %}
 
-<script>
-  const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
-
-  function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
-        }
-      }
-    }
-    return cookieValue;
-  }
-
-  const aulaId = '{{ aula.id }}';
-  const token = '{{ token }}';
-
-  console.log('Página de registro carregada - Aula:', aulaId, 'Token:', token);
-
-  if (navigator.geolocation) {
-    console.log('Geolocalização disponível, solicitando permissão...');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-        console.log('Localização obtida:', latitude, longitude);
-        registrarPresenca(latitude, longitude);
-      },
-      (error) => {
-        console.error('Erro de geolocalização:', error);
-        showError(['Não foi possível obter sua localização', 'Verifique as permissões de localização do navegador']);
-      }
-    );
-  } else {
-    console.error('Geolocalização não suportada');
-    showError(['Geolocalização não suportada neste navegador']);
-  }
-
-  function registrarPresenca(latitude, longitude) {
-    const payload = { aula_id: aulaId, token: token, latitude: latitude, longitude: longitude };
-    console.log('Enviando presença:', payload);
-
-    fetch('/presenca/registrar-ajax/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
-      body: JSON.stringify(payload),
-    })
-    .then(response => { console.log('Status:', response.status); return response.json(); })
-    .then(data => { console.log('Resposta:', data); data.success ? showSuccess() : showError(data.errors || [data.error]); })
-    .catch(error => { console.error('Erro:', error); showError(['Erro ao processar requisição: ' + error.message]); });
-  }
-
-  function showSuccess() {
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('successState').style.display = 'block';
-    document.getElementById('errorState').style.display = 'none';
-  }
-
-  function showError(errors) {
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('successState').style.display = 'none';
-    document.getElementById('errorState').style.display = 'block';
-    document.getElementById('errorList').innerHTML = errors.map(err => `<li style="margin-bottom:6px;">• ${err}</li>`).join('');
-  }
-</script>
-
-{% csrf_token %}
-{% endblock %}
+</body>
+</html>

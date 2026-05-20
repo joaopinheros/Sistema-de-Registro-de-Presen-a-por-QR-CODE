@@ -26,6 +26,12 @@ class AulaAdmin(admin.ModelAdmin):
     date_hierarchy = 'data'
     raw_id_fields = ['disciplina', 'sala']
     readonly_fields = ['token_qrcode', 'qrcode_imagem', 'criada_em']
+    fieldsets = [
+        (None, {'fields': ['disciplina', 'sala', 'data', 'horario_inicio', 'horario_fim', 'descricao', 'ativa']}),
+        ('Geolocalização', {'fields': ['latitude', 'longitude', 'raio_permitido']}),
+        ('QR Code', {'fields': ['token_qrcode', 'qrcode_imagem']}),
+        ('Datas', {'fields': ['criada_em']}),
+    ]
 
     def qr_preview(self, obj):
         if obj.qrcode_imagem:

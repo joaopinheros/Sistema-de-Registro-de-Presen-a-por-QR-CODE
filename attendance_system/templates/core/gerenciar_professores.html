@@ -11,8 +11,8 @@
         <span class="card-title">Gerenciar Professores</span>
         <span class="badge badge-blue" style="margin-left:auto;">{{ total }} professor{{ total|pluralize }}</span>
       </div>
-      <a href="/admin/accounts/professor/add/" class="btn btn-primary btn-sm" target="_blank">
-        <i class="fa-solid fa-user-plus"></i> Novo Professor
+      <a href="/painel-admin/usuarios/" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-user-plus"></i> Gerenciar Usuários
       </a>
     </div>
 
@@ -48,11 +48,8 @@
             </td>
             <td>
               <div style="display:flex;gap:6px;">
-                <a href="/admin/accounts/professor/{{ prof.id }}/change/" class="btn btn-outline btn-sm" target="_blank">
-                  <i class="fa-solid fa-edit"></i> Editar
-                </a>
-                <a href="/admin/accounts/professor/{{ prof.id }}/delete/" class="btn btn-danger btn-sm" target="_blank" onclick="return confirm('Tem certeza?')">
-                  <i class="fa-solid fa-trash"></i> Deletar
+                <a href="/painel-admin/usuarios/" class="btn btn-outline btn-sm">
+                  <i class="fa-solid fa-users"></i> Painel
                 </a>
               </div>
             </td>

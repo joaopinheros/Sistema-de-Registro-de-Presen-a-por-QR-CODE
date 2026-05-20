@@ -125,7 +125,7 @@ echo -e "${VERDE}========================================${NC}"
 echo -e "${VERDE}   Setup concluído com sucesso!         ${NC}"
 echo -e "${VERDE}========================================${NC}"
 echo ""
-echo -e "  Para rodar o servidor:"
+echo -e "  Para rodar o servidor:"git 
 echo -e "  ${AMARELO}.venv/bin/python manage.py runserver${NC}"
 echo ""
 echo -e "  Credenciais:"

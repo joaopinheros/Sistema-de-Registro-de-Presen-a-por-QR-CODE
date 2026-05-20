@@ -87,7 +87,7 @@ class AulaViewSet(viewsets.ModelViewSet):
     def gerar_qrcode(self, request, pk=None):
         aula = self.get_object()
         try:
-            qr_path = QRCodeService.generate(aula)
+            qr_path = QRCodeService.generate(aula, request=request)
             serializer = AulaSerializer(aula, context={'request': request})
             return Response({
                 'detail': 'QR Code gerado com sucesso.',
@@ -100,7 +100,7 @@ class AulaViewSet(viewsets.ModelViewSet):
     def qrcode(self, request, pk=None):
         aula = self.get_object()
         if not aula.qrcode_imagem:
-            QRCodeService.generate(aula)
+            QRCodeService.generate(aula, request=request)
             aula.refresh_from_db()
         serializer = AulaSerializer(aula, context={'request': request})
         return Response(serializer.data)

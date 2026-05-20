@@ -56,9 +56,7 @@
     .sidebar-logo .logo-text {
       font-family: var(--font-head);
       font-size: 1.3rem; font-weight: 800;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--accent);
     }
     .sidebar-logo .logo-sub {
       font-size: .7rem; color: var(--text-muted); margin-top: 2px;
@@ -253,7 +251,7 @@
     select, textarea {
       width: 100%; background: var(--surface2);
       border: 1px solid var(--border); border-radius: 8px;
-      color: var(--text); font-family: var(--font-mono); font-size: .85rem;
+      color: var(--text); font-family: var(--font-mono); font-size: 1rem;
       padding: 10px 14px; transition: border-color .2s;
       outline: none;
     }
@@ -285,6 +283,13 @@
       display: none; background: none; border: none;
       color: var(--text); font-size: 1.3rem; cursor: pointer;
     }
+    /* ── Sidebar overlay (mobile) ── */
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 99;
+    }
+    .sidebar-overlay.visible { display: block; }
+
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); }
       .sidebar.open { transform: translateX(0); }
@@ -293,6 +298,16 @@
       .page-body { padding: 18px; }
       .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: 1fr 1fr; }
+
+      /* Modals on mobile */
+      .modal-overlay > .modal-box {
+        width: 95% !important; max-width: 95% !important;
+        max-height: 90vh !important;
+      }
+
+      /* Larger tap targets */
+      .btn { min-height: 40px; }
+      .btn-sm { min-height: 34px; }
     }
 
     /* ── Animations ── */
@@ -303,7 +318,48 @@
     .fade-in-3 { animation-delay: .15s; }
     .fade-in-4 { animation-delay: .2s; }
 
-    /* ── Misc ── */
+    /* ── Toast notifications ── */
+  #toastContainer {
+    position: fixed; top: 20px; right: 20px; z-index: 999999;
+    display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--surface); border-radius: var(--radius);
+    padding: 12px 18px; font-size: .83rem;
+    box-shadow: 0 6px 24px rgba(0,0,0,.35);
+    pointer-events: auto; max-width: 320px;
+    display: flex; align-items: center; gap: 10px;
+    animation: toastIn .25s ease;
+  }
+  .toast.success { border: 1px solid var(--green); color: var(--green); }
+  .toast.error   { border: 1px solid var(--red);   color: var(--red);   }
+  .toast.info    { border: 1px solid var(--accent); color: var(--accent); }
+  @keyframes toastIn  { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform:none; } }
+  @keyframes toastOut { from { opacity:1; } to { opacity:0; transform: translateX(20px); } }
+  @media (max-width: 768px) {
+    #toastContainer { top: auto; bottom: 20px; left: 16px; right: 16px; }
+    .toast { max-width: 100%; }
+  }
+
+  /* ── Modals (global) ── */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,.7); z-index: 99999;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px;
+    width: 90%; max-width: 520px;
+    max-height: 85vh; overflow-y: auto;
+    position: relative;
+  }
+  @media (max-width: 768px) {
+    .modal-box { width: 95%; max-height: 90vh; }
+  }
+
+  /* ── Misc ── */
     .text-muted { color: var(--text-muted); }
     .text-sm { font-size: .78rem; }
     .mt-4 { margin-top: 16px; }
@@ -334,7 +390,13 @@
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+<!-- Toast container (global) -->
+<div id="toastContainer"></div>
+
 <div class="layout">
+  <!-- Sidebar overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
   <!-- Sidebar -->
   {% if user.is_authenticated %}
   <aside class="sidebar" id="sidebar">
@@ -358,38 +420,42 @@
       {% if user.is_student %}
       <div class="nav-section-label">Frequência</div>
       <a href="/dashboard/presencas/" class="nav-item {% block nav_minhas_presencas %}{% endblock %}">
-      <i class="fa-solid fa-calendar-check"></i> Minhas Presenças
+        <i class="fa-solid fa-calendar-check"></i> Minhas Presenças
       </a>
       {% endif %}
 
-      {% if user.is_professor or user.is_admin %}
-      <div class="nav-section-label">Gestão</div>
-      <a href="/dashboard/aulas/" class="nav-item {% block nav_aulas %}{% endblock %}">
+      {% if user.is_professor and not user.is_admin %}
+      <div class="nav-section-label">Painel</div>
+      <a href="/painel-professor/aulas/" class="nav-item {% block nav_aulas %}{% endblock %}">
         <i class="fa-solid fa-chalkboard-user"></i> Aulas
       </a>
-      <a href="/dashboard/disciplinas/" class="nav-item {% block nav_disc %}{% endblock %}">
+      <a href="/painel-professor/disciplinas/" class="nav-item {% block nav_disc %}{% endblock %}">
         <i class="fa-solid fa-book"></i> Disciplinas
       </a>
-      <a href="/dashboard/presencas" class="nav-item {% block nav_presencas %}{% endblock %}">
+      <a href="/painel-professor/presencas/" class="nav-item {% block nav_presencas %}{% endblock %}">
         <i class="fa-solid fa-clipboard-list"></i> Presenças
       </a>
       {% endif %}
 
       {% if user.is_admin %}
       <div class="nav-section-label">Administração</div>
-      <a href="/dashboard/alunos" class="nav-item">
-        <i class="fa-solid fa-user-graduate"></i> Alunos
+      <a href="/painel-admin/usuarios/" class="nav-item {% block nav_admin_usuarios %}{% endblock %}">
+        <i class="fa-solid fa-users"></i> Usuários
       </a>
-      <a href="/dashboard/professores" class="nav-item">
-        <i class="fa-solid fa-user-tie"></i> Professores
-      </a>
-      <a href="/dashboard/salas/" class="nav-item">
+      <a href="/painel-admin/salas/" class="nav-item {% block nav_admin_salas %}{% endblock %}">
         <i class="fa-solid fa-door-open"></i> Salas
       </a>
-      <a href="/admin/" class="nav-item">
-        <i class="fa-solid fa-screwdriver-wrench"></i> Admin Django
+      <a href="/painel-admin/disciplinas/" class="nav-item {% block nav_admin_disc %}{% endblock %}">
+        <i class="fa-solid fa-book"></i> Disciplinas
+      </a>
+      <a href="/painel-admin/vincular/" class="nav-item {% block nav_admin_vincular %}{% endblock %}">
+        <i class="fa-solid fa-link"></i> Vincular Alunos
+      </a>
+      <a href="/painel-admin/relatorios/" class="nav-item {% block nav_admin_relatorios %}{% endblock %}">
+        <i class="fa-solid fa-chart-bar"></i> Relatórios
       </a>
       {% endif %}
+
     </nav>
     <div class="sidebar-footer">
       <form method="post" action="{% url 'account_logout' %}">
@@ -406,7 +472,7 @@
   <div class="main-content">
     <header class="topbar">
       {% if user.is_authenticated %}
-      <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">
+      <button class="hamburger" onclick="toggleSidebar()">
         <i class="fa-solid fa-bars"></i>
       </button>
       {% endif %}
@@ -432,5 +498,69 @@
   </div>
 </div>
 {% block extra_js %}{% endblock %}
+<script>
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('visible');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('visible');
+  }
+  // Close sidebar on nav link click (mobile UX)
+  document.querySelectorAll('.sidebar .nav-item').forEach(function(el) {
+    el.addEventListener('click', function() {
+      if (window.innerWidth <= 768) closeSidebar();
+    });
+  });
+
+  // Hoist all modal overlays to <body> so they're never trapped inside
+  // transformed parents (e.g. .fade-in animation creates a stacking context)
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.modal-overlay').forEach(function(m) {
+      document.body.appendChild(m);
+    });
+  });
+
+  // Global modal helpers
+  function openModal(id) {
+    const m = document.getElementById(id);
+    if (m) { m.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+  }
+  function closeModal(id) {
+    const m = document.getElementById(id);
+    if (m) { m.style.display = 'none'; }
+    // Restore body scroll only if no other modal is open
+    const anyOpen = Array.from(document.querySelectorAll('.modal-overlay'))
+      .some(function(el) { return el.style.display === 'flex'; });
+    if (!anyOpen) document.body.style.overflow = '';
+  }
+
+  // ESC key closes any open modal
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay').forEach(function(m) {
+        if (m.style.display === 'flex') closeModal(m.id);
+      });
+    }
+  });
+
+  // Global toast notification function
+  function showToast(message, type) {
+    type = type || 'success';
+    const icons = { success: 'circle-check', error: 'circle-xmark', info: 'circle-info' };
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.innerHTML = '<i class="fa-solid fa-' + (icons[type] || 'circle-info') + '"></i> ' + message;
+    const container = document.getElementById('toastContainer');
+    container.appendChild(toast);
+    setTimeout(function() {
+      toast.style.animation = 'toastOut .25s ease forwards';
+      setTimeout(function() { toast.remove(); }, 260);
+    }, 3500);
+  }
+</script>
 </body>
 </html>

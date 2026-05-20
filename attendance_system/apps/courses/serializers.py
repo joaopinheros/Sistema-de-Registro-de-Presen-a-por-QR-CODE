@@ -39,6 +39,7 @@ class AulaSerializer(serializers.ModelSerializer):
             'id', 'disciplina', 'disciplina_nome', 'disciplina_codigo',
             'sala', 'sala_nome', 'sala_predio',
             'data', 'horario_inicio', 'horario_fim',
+            'latitude', 'longitude', 'raio_permitido',
             'token_qrcode', 'qrcode_url', 'presenca_url',
             'descricao', 'ativa', 'esta_ativa', 'criada_em',
         ]
@@ -54,7 +55,10 @@ class AulaSerializer(serializers.ModelSerializer):
 class AulaCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Aula
-        fields = ['disciplina', 'sala', 'data', 'horario_inicio', 'horario_fim', 'descricao', 'ativa']
+        fields = [
+            'disciplina', 'sala', 'data', 'horario_inicio', 'horario_fim',
+            'latitude', 'longitude', 'raio_permitido', 'descricao', 'ativa',
+        ]
 
     def validate(self, attrs):
         if attrs.get('horario_inicio') and attrs.get('horario_fim'):

@@ -1,0 +1,112 @@
+{% extends "professor_panel/base_professor.html" %}
+{% block title %}Presenças — Professor{% endblock %}
+{% block topbar_title %}Presenças{% endblock %}
+{% block subnav_presencas %}active{% endblock %}
+
+{% block prof_content %}
+<div class="card">
+  <div class="card-header">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <i class="fa-solid fa-clipboard-list" style="color:var(--accent);"></i>
+      <span class="card-title">Presenças</span>
+      <span class="badge badge-blue">{{ total }}</span>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+    <select name="disciplina"
+            style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:.85rem;">
+      <option value="">Todas as disciplinas</option>
+      {% for d in disciplinas %}
+      <option value="{{ d.id }}" {% if filtro_disc == d.id|stringformat:"s" %}selected{% endif %}>
+        {{ d.codigo }} — {{ d.nome }}
+      </option>
+      {% endfor %}
+    </select>
+    <select name="status"
+            style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:.85rem;">
+      <option value="">Todos os status</option>
+      <option value="presente" {% if filtro_status == 'presente' %}selected{% endif %}>Presente</option>
+      <option value="negado"   {% if filtro_status == 'negado'   %}selected{% endif %}>Negado</option>
+      <option value="ausente"  {% if filtro_status == 'ausente'  %}selected{% endif %}>Ausente</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">
+      <i class="fa-solid fa-magnifying-glass"></i> Filtrar
+    </button>
+    {% if filtro_disc or filtro_status %}
+    <a href="/painel-professor/presencas/" class="btn btn-outline btn-sm">
+      <i class="fa-solid fa-xmark"></i> Limpar
+    </a>
+    {% endif %}
+  </form>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Aluno</th>
+          <th>Disciplina</th>
+          <th>Aula</th>
+          <th>Horário Registro</th>
+          <th>Status</th>
+          <th>Rede</th>
+          <th>Geo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in presencas %}
+        <tr>
+          <td>
+            <div style="font-size:.82rem;font-weight:600;">{{ p.aluno.user.get_full_name }}</div>
+            <div style="font-size:.7rem;color:var(--text-muted);">{{ p.aluno.matricula }}</div>
+          </td>
+          <td>
+            <strong style="font-size:.78rem;">{{ p.aula.disciplina.codigo }}</strong>
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);">
+            {{ p.aula.data|date:"d/m/Y" }}<br>
+            <span style="font-size:.7rem;">{{ p.aula.horario_inicio|time:"H:i" }} – {{ p.aula.horario_fim|time:"H:i" }}</span>
+          </td>
+          <td style="font-size:.78rem;color:var(--text-muted);">{{ p.horario_registro|date:"d/m/Y H:i" }}</td>
+          <td>
+            {% if p.status == 'presente' %}
+              <span class="badge badge-green">Presente</span>
+            {% elif p.status == 'negado' %}
+              <span class="badge badge-red" title="{{ p.motivo_negacao }}">Negado</span>
+            {% elif p.status == 'ausente' %}
+              <span class="badge badge-gray">Ausente</span>
+            {% else %}
+              <span class="badge badge-yellow">{{ p.status|capfirst }}</span>
+            {% endif %}
+          </td>
+          <td style="text-align:center;">
+            {% if p.validado_rede %}
+              <i class="fa-solid fa-circle-check" style="color:var(--green);"></i>
+            {% else %}
+              <i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i>
+            {% endif %}
+          </td>
+          <td style="text-align:center;">
+            {% if p.validado_geo %}
+              <i class="fa-solid fa-circle-check" style="color:var(--green);"></i>
+            {% else %}
+              <i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7">
+            <div class="empty-state">
+              <i class="fa-solid fa-clipboard-list"></i>
+              <p>Nenhuma presença encontrada.</p>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

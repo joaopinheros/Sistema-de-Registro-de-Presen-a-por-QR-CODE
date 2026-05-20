@@ -96,12 +96,13 @@ try:
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
             'LOCATION': REDIS_URL,
+            'TIMEOUT': 300,  # default TTL 5 min (sobrescrito por cache.set com timeout específico)
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'SOCKET_CONNECT_TIMEOUT': 2,
                 'SOCKET_TIMEOUT': 2,
                 'IGNORE_EXCEPTIONS': True,
-            }
+            },
         }
     }
     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
@@ -199,6 +200,28 @@ UNIVERSITY_IP_RANGES = config(
     default='177.74.237.209,127.0.0.1,10.0.0.0/8,192.168.0.0/16,200.131.0.0/16'
 ).strip().split(',')
 
+# IPs permitidos para registro de presença
+if DEBUG:
+    ALLOWED_IP_RANGES = [
+        '127.0.0.1',
+        '::1',
+        '192.168.0.0/16',
+        '10.0.0.0/8',
+        '172.16.0.0/12',
+        '201.17.152.183',                          # IPv4 do desenvolvedor
+        '2804:14c:5be3:b0f1:2c59:796c:5bed:8aae',  # IPv6 do desenvolvedor
+        '2804:14c::/32',                           # Range IPv6 da operadora
+        '177.74.237.209',                          # IP da UFVJM
+        '200.131.0.0/16',                          # Range UFVJM
+    ]
+else:
+    ALLOWED_IP_RANGES = config(
+        'ALLOWED_IP_RANGES',
+        default='127.0.0.1,::1'
+    ).strip().split(',')
+    # Produção — descomentar com IP da faculdade:
+    # ALLOWED_IP_RANGES = ['200.xxx.xxx.0/24']
+
 # Celery / RabbitMQ
 CELERY_BROKER_URL = config('RABBITMQ_URL', default='amqp://guest:guest@localhost:5672/')
 CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6380/0')
@@ -214,6 +237,11 @@ CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
+
+# Proxy / Cloudflare — permite que request.build_absolute_uri()
+# devolva o domínio e esquema (https) corretos vindos dos headers do proxy
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Security settings for production
 if not DEBUG:

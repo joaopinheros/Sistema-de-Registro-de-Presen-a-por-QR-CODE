@@ -11,8 +11,8 @@
         <span class="card-title">Gerenciar Salas</span>
         <span class="badge badge-blue" style="margin-left:auto;">{{ total }} sala{{ total|pluralize }}</span>
       </div>
-      <a href="/admin/courses/sala/add/" class="btn btn-primary btn-sm" target="_blank">
-        <i class="fa-solid fa-plus"></i> Nova Sala
+      <a href="/painel-admin/salas/" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-plus"></i> Gerenciar Salas
       </a>
     </div>
 
@@ -44,11 +44,8 @@
             <td><span class="badge badge-yellow">{{ sala.raio_permitido }}m</span></td>
             <td>
               <div style="display:flex;gap:6px;">
-                <a href="/admin/courses/sala/{{ sala.id }}/change/" class="btn btn-outline btn-sm" target="_blank">
-                  <i class="fa-solid fa-edit"></i> Editar
-                </a>
-                <a href="/admin/courses/sala/{{ sala.id }}/delete/" class="btn btn-danger btn-sm" target="_blank" onclick="return confirm('Tem certeza?')">
-                  <i class="fa-solid fa-trash"></i> Deletar
+                <a href="/painel-admin/salas/" class="btn btn-outline btn-sm">
+                  <i class="fa-solid fa-door-open"></i> Painel
                 </a>
               </div>
             </td>

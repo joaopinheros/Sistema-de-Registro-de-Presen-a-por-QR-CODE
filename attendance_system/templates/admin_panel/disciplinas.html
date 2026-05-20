@@ -1,0 +1,333 @@
+{% extends "admin_panel/base_admin.html" %}
+{% block title %}Disciplinas — Painel Admin{% endblock %}
+{% block topbar_title %}Disciplinas{% endblock %}
+{% block subnav_disciplinas %}active{% endblock %}
+
+{% block admin_content %}
+<div class="card">
+  <div class="card-header">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <i class="fa-solid fa-book" style="color:var(--accent);"></i>
+      <span class="card-title">Disciplinas</span>
+      <span class="badge badge-blue" id="totalBadge">{{ total }}</span>
+    </div>
+    <button onclick="openCriarModal()" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i> Nova Disciplina</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Código</th><th>Nome</th><th>Professor</th><th>Semestre</th><th>Alunos</th><th>Presenças</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="tbodyDiscs">
+        {% for d in disciplinas %}
+        <tr id="row-disc-{{ d.id }}">
+          <td><code style="font-size:.78rem;background:var(--surface2);padding:2px 6px;border-radius:4px;" class="disc-codigo">{{ d.codigo }}</code></td>
+          <td><strong style="font-size:.82rem;" class="disc-nome">{{ d.nome }}</strong></td>
+          <td style="font-size:.78rem;color:var(--text-muted);" class="disc-professor">{{ d.professor.user.get_full_name }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);" class="disc-semestre">{{ d.semestre }}º/{{ d.ano }}</td>
+          <td>
+            <button onclick="abrirAlunos({{ d.id }})" class="badge badge-blue" style="cursor:pointer;border:none;background:rgba(79,110,247,.15);color:var(--accent);" title="Ver alunos matriculados">{{ d.total_alunos }}</button>
+            <a href="/painel-admin/vincular/?disciplina={{ d.id }}" class="btn btn-outline btn-sm" style="margin-left:4px;" title="Gerenciar vínculos"><i class="fa-solid fa-link"></i></a>
+          </td>
+          <td>
+            <button onclick="abrirPresencas({{ d.id }})" class="badge badge-yellow" style="cursor:pointer;border:none;background:rgba(251,191,36,.15);color:var(--yellow);" title="Ver presenças registradas">{{ d.total_presencas }}</button>
+          </td>
+          <td><span id="badge-disc-{{ d.id }}" class="badge {% if d.ativa %}badge-green{% else %}badge-red{% endif %}">{% if d.ativa %}Ativa{% else %}Inativa{% endif %}</span></td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <button onclick="editarDisc({{ d.id }})" class="btn btn-sm btn-primary" title="Editar"><i class="fa-solid fa-pencil"></i></button>
+              <button onclick="toggleDisc({{ d.id }})" class="btn btn-sm {% if d.ativa %}btn-danger{% else %}btn-success{% endif %}" id="btn-disc-{{ d.id }}" title="{% if d.ativa %}Desativar{% else %}Ativar{% endif %}">
+                {% if d.ativa %}<i class="fa-solid fa-ban"></i>{% else %}<i class="fa-solid fa-check"></i>{% endif %}
+              </button>
+              <button onclick="deletarDisc({{ d.id }}, '{{ d.nome|escapejs }}')" class="btn btn-sm btn-danger" title="Deletar"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr id="emptyRow"><td colspan="8"><div class="empty-state"><i class="fa-solid fa-book-open"></i><p>Nenhuma disciplina cadastrada.</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Criar / Editar Disciplina ═══ -->
+<div id="modalCriarDisc" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 id="modalDiscTitulo" style="font-family:var(--font-head);font-size:1rem;font-weight:700;"><i class="fa-solid fa-book" style="color:var(--accent);margin-right:8px;"></i>Nova Disciplina</h3>
+      <button onclick="closeCriarModal()" style="background:none;border:none;color:var(--text);font-size:1.4rem;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="modalDiscError" class="alert alert-error" style="display:none;margin-bottom:16px;"></div>
+    <form id="formCriarDisc">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="criar" id="discFormAction">
+      <div class="form-group"><label>Nome *</label><input type="text" name="nome" placeholder="Ex: Algoritmos e Estruturas de Dados" required></div>
+      <div class="form-grid">
+        <div class="form-group"><label>Código *</label><input type="text" name="codigo" placeholder="Ex: AED001" required style="text-transform:uppercase;"></div>
+        <div class="form-group">
+          <label>Semestre *</label>
+          <select name="semestre" required>
+            {% for i in "1234567890"|make_list %}{% if forloop.counter <= 10 %}
+            <option value="{{ forloop.counter }}">{{ forloop.counter }}º Semestre</option>
+            {% endif %}{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Professor *</label>
+          <select name="professor" required>
+            <option value="">Selecione...</option>
+            {% for p in professores %}
+            <option value="{{ p.id }}">{{ p.user.get_full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>Ano</label><input type="number" name="ano" value="{% now 'Y' %}" min="2020" max="2035"></div>
+      </div>
+      <div class="form-group"><label>Descrição</label><textarea name="descricao" placeholder="Opcional" style="min-height:60px;"></textarea></div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button type="submit" id="btnSalvarDisc" class="btn btn-success" style="flex:1;justify-content:center;"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+        <button type="button" onclick="closeCriarModal()" class="btn btn-outline" style="flex:1;justify-content:center;">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Alunos Matriculados ═══ -->
+<div id="modalDiscAlunos" class="modal-overlay" style="display:none;">
+  <div class="modal-box" style="max-width:600px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;">
+        <i class="fa-solid fa-users" style="color:var(--accent);margin-right:8px;"></i>
+        Alunos — <span id="modalAlunosTitulo" style="color:var(--text-muted);font-weight:400;"></span>
+      </h3>
+      <button onclick="closeModal('modalDiscAlunos')" style="background:none;border:none;color:var(--text);font-size:1.4rem;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="overflow-x:auto;max-height:60vh;overflow-y:auto;">
+      <table style="width:100%;">
+        <thead><tr><th>Nome</th><th>Matrícula</th><th>Curso</th></tr></thead>
+        <tbody id="tbodyAlunosDisc"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Presenças Registradas ═══ -->
+<div id="modalDiscPresencas" class="modal-overlay" style="display:none;">
+  <div class="modal-box" style="max-width:700px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;">
+        <i class="fa-solid fa-calendar-check" style="color:var(--yellow);margin-right:8px;"></i>
+        Presenças — <span id="modalPresencasTitulo" style="color:var(--text-muted);font-weight:400;"></span>
+      </h3>
+      <button onclick="closeModal('modalDiscPresencas')" style="background:none;border:none;color:var(--text);font-size:1.4rem;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="overflow-x:auto;max-height:60vh;overflow-y:auto;">
+      <table style="width:100%;">
+        <thead><tr><th>Aluno</th><th>Matrícula</th><th>Aula</th><th>Registro</th></tr></thead>
+        <tbody id="tbodyPresencasDisc"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCsrf() { return document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''; }
+let totalDiscs = {{ total }};
+let editingDiscId = null;
+
+// ── Criar / Editar modal ──
+function openCriarModal() {
+  editingDiscId = null;
+  document.getElementById('formCriarDisc').reset();
+  document.getElementById('discFormAction').value = 'criar';
+  document.getElementById('modalDiscTitulo').innerHTML = '<i class="fa-solid fa-book" style="color:var(--accent);margin-right:8px;"></i>Nova Disciplina';
+  document.getElementById('btnSalvarDisc').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar';
+  document.getElementById('modalDiscError').style.display = 'none';
+  openModal('modalCriarDisc');
+}
+
+function editarDisc(discId) {
+  fetch(`/painel-admin/disciplinas/${discId}/editar/`)
+  .then(r => r.json())
+  .then(data => {
+    editingDiscId = discId;
+    const f = document.getElementById('formCriarDisc');
+    f.querySelector('[name=nome]').value = data.nome;
+    f.querySelector('[name=codigo]').value = data.codigo;
+    f.querySelector('[name=semestre]').value = data.semestre;
+    f.querySelector('[name=professor]').value = data.professor_id;
+    f.querySelector('[name=ano]').value = data.ano;
+    f.querySelector('[name=descricao]').value = data.descricao;
+    document.getElementById('modalDiscTitulo').innerHTML = '<i class="fa-solid fa-pencil" style="color:var(--accent);margin-right:8px;"></i>Editar Disciplina';
+    document.getElementById('btnSalvarDisc').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar Alterações';
+    document.getElementById('modalDiscError').style.display = 'none';
+    openModal('modalCriarDisc');
+  })
+  .catch(() => showToast('Erro ao carregar dados da disciplina.', 'error'));
+}
+
+function closeCriarModal() { closeModal('modalCriarDisc'); }
+document.getElementById('modalCriarDisc').addEventListener('click', function(e) { if (e.target === this) closeModal('modalCriarDisc'); });
+document.getElementById('modalDiscAlunos').addEventListener('click', function(e) { if (e.target === this) closeModal('modalDiscAlunos'); });
+document.getElementById('modalDiscPresencas').addEventListener('click', function(e) { if (e.target === this) closeModal('modalDiscPresencas'); });
+
+document.getElementById('formCriarDisc').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSalvarDisc');
+  const errDiv = document.getElementById('modalDiscError');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Salvando...';
+
+  const url = editingDiscId
+    ? `/painel-admin/disciplinas/${editingDiscId}/editar/`
+    : '/painel-admin/disciplinas/';
+  const fd = new FormData(this);
+
+  fetch(url, { method: 'POST', body: fd, headers: { 'X-CSRFToken': getCsrf() } })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      closeCriarModal();
+      showToast(data.message, 'success');
+      const d = data.disciplina;
+      if (editingDiscId) {
+        // Update existing row in-place
+        const row = document.getElementById(`row-disc-${d.id}`);
+        if (row) {
+          row.querySelector('.disc-codigo').textContent = d.codigo;
+          row.querySelector('.disc-nome').textContent = d.nome;
+          row.querySelector('.disc-professor').textContent = d.professor;
+          row.querySelector('.disc-semestre').textContent = `${d.semestre}º/${d.ano}`;
+        }
+      } else {
+        // Prepend new row
+        const row = `<tr id="row-disc-${d.id}">
+          <td><code style="font-size:.78rem;background:var(--surface2);padding:2px 6px;border-radius:4px;" class="disc-codigo">${d.codigo}</code></td>
+          <td><strong style="font-size:.82rem;" class="disc-nome">${d.nome}</strong></td>
+          <td style="font-size:.78rem;color:var(--text-muted);" class="disc-professor">${d.professor}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);" class="disc-semestre">${d.semestre}º/${d.ano}</td>
+          <td>
+            <button onclick="abrirAlunos(${d.id})" class="badge badge-blue" style="cursor:pointer;border:none;background:rgba(79,110,247,.15);color:var(--accent);" title="Ver alunos">0</button>
+            <a href="/painel-admin/vincular/?disciplina=${d.id}" class="btn btn-outline btn-sm" style="margin-left:4px;" title="Gerenciar vínculos"><i class="fa-solid fa-link"></i></a>
+          </td>
+          <td><button onclick="abrirPresencas(${d.id})" class="badge badge-yellow" style="cursor:pointer;border:none;background:rgba(251,191,36,.15);color:var(--yellow);" title="Ver presenças">0</button></td>
+          <td><span id="badge-disc-${d.id}" class="badge badge-green">Ativa</span></td>
+          <td><div style="display:flex;gap:6px;">
+            <button onclick="editarDisc(${d.id})" class="btn btn-sm btn-primary" title="Editar"><i class="fa-solid fa-pencil"></i></button>
+            <button onclick="toggleDisc(${d.id})" class="btn btn-sm btn-danger" id="btn-disc-${d.id}" title="Desativar"><i class="fa-solid fa-ban"></i></button>
+            <button onclick="deletarDisc(${d.id}, '${d.nome.replace(/'/g, "\\'")}')" class="btn btn-sm btn-danger" title="Deletar"><i class="fa-solid fa-trash"></i></button>
+          </div></td>
+        </tr>`;
+        document.getElementById('emptyRow')?.remove();
+        document.getElementById('tbodyDiscs').insertAdjacentHTML('afterbegin', row);
+        totalDiscs++;
+        document.getElementById('totalBadge').textContent = totalDiscs;
+      }
+    } else {
+      errDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ' + data.error;
+      errDiv.style.display = 'flex';
+    }
+  })
+  .catch(() => { errDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Erro de conexão.'; errDiv.style.display = 'flex'; })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = editingDiscId
+      ? '<i class="fa-solid fa-floppy-disk"></i> Salvar Alterações'
+      : '<i class="fa-solid fa-floppy-disk"></i> Salvar';
+  });
+});
+
+// ── Toggle / Deletar ──
+function toggleDisc(discId) {
+  const fd = new FormData();
+  fd.append('action', 'toggle_ativa'); fd.append('disciplina_id', discId); fd.append('csrfmiddlewaretoken', getCsrf());
+  fetch('/painel-admin/disciplinas/', { method: 'POST', body: fd })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const badge = document.getElementById(`badge-disc-${discId}`);
+      const btn   = document.getElementById(`btn-disc-${discId}`);
+      if (data.ativa) {
+        badge.className = 'badge badge-green'; badge.textContent = 'Ativa';
+        btn.className = 'btn btn-sm btn-danger'; btn.title = 'Desativar'; btn.innerHTML = '<i class="fa-solid fa-ban"></i>';
+        btn.onclick = () => toggleDisc(discId);
+      } else {
+        badge.className = 'badge badge-red'; badge.textContent = 'Inativa';
+        btn.className = 'btn btn-sm btn-success'; btn.title = 'Ativar'; btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        btn.onclick = () => toggleDisc(discId);
+      }
+    }
+  });
+}
+
+function deletarDisc(discId, nome) {
+  if (!confirm(`Deletar a disciplina "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+  const fd = new FormData();
+  fd.append('action', 'deletar'); fd.append('disciplina_id', discId); fd.append('csrfmiddlewaretoken', getCsrf());
+  fetch('/painel-admin/disciplinas/', { method: 'POST', body: fd })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById(`row-disc-${discId}`)?.remove();
+      totalDiscs--; document.getElementById('totalBadge').textContent = totalDiscs;
+      showToast(data.message, 'success');
+    } else { showToast(data.error, 'error'); }
+  });
+}
+
+// ── Alunos modal ──
+function abrirAlunos(discId) {
+  document.getElementById('tbodyAlunosDisc').innerHTML =
+    '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Carregando...</td></tr>';
+  openModal('modalDiscAlunos');
+  fetch(`/painel-admin/disciplinas/${discId}/alunos/`)
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('modalAlunosTitulo').textContent = data.disciplina;
+    const tbody = document.getElementById('tbodyAlunosDisc');
+    if (!data.alunos.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--text-muted);">Nenhum aluno matriculado.</td></tr>';
+    } else {
+      tbody.innerHTML = data.alunos.map(a =>
+        `<tr><td style="font-size:.82rem;">${a.nome}</td><td><span class="badge badge-blue" style="font-size:.7rem;">${a.matricula}</span></td><td style="font-size:.82rem;color:var(--text-muted);">${a.curso}</td></tr>`
+      ).join('');
+    }
+  })
+  .catch(() => { document.getElementById('tbodyAlunosDisc').innerHTML = '<tr><td colspan="3" style="color:var(--red);padding:16px;">Erro ao carregar.</td></tr>'; });
+}
+
+// ── Presenças modal ──
+function abrirPresencas(discId) {
+  document.getElementById('tbodyPresencasDisc').innerHTML =
+    '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Carregando...</td></tr>';
+  openModal('modalDiscPresencas');
+  fetch(`/painel-admin/disciplinas/${discId}/presencas/`)
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('modalPresencasTitulo').textContent = data.disciplina;
+    const tbody = document.getElementById('tbodyPresencasDisc');
+    if (!data.presencas.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted);">Nenhuma presença registrada.</td></tr>';
+    } else {
+      tbody.innerHTML = data.presencas.map(p =>
+        `<tr>
+          <td style="font-size:.82rem;">${p.aluno}</td>
+          <td><span class="badge badge-blue" style="font-size:.7rem;">${p.matricula}</span></td>
+          <td style="font-size:.78rem;color:var(--text-muted);">${p.aula_data} ${p.aula_hora}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">${p.horario}</td>
+        </tr>`
+      ).join('');
+    }
+  })
+  .catch(() => { document.getElementById('tbodyPresencasDisc').innerHTML = '<tr><td colspan="4" style="color:var(--red);padding:16px;">Erro ao carregar.</td></tr>'; });
+}
+</script>
+<style>@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }</style>
+{% endblock %}

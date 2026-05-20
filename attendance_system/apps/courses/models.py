@@ -8,10 +8,9 @@ from apps.accounts.models import Professor
 class Sala(models.Model):
     nome = models.CharField(max_length=100, verbose_name='Nome da Sala')
     predio = models.CharField(max_length=100, verbose_name='Prédio')
-    latitude = models.DecimalField(max_digits=30, decimal_places=20, verbose_name='Latitude')
-    longitude = models.DecimalField(max_digits=30, decimal_places=20, verbose_name='Longitude')
-#    raio_permitido = models.PositiveIntegerField(default=50, verbose_name='Raio Permitido (metros)')
-    raio_permitido = models.PositiveIntegerField(default=10000, verbose_name='Raio Permitido (metros)')
+    latitude = models.DecimalField(max_digits=30, decimal_places=20, null=True, blank=True, verbose_name='Latitude')
+    longitude = models.DecimalField(max_digits=30, decimal_places=20, null=True, blank=True, verbose_name='Longitude')
+    raio_permitido = models.PositiveIntegerField(default=50, verbose_name='Raio Permitido (metros)')
     capacidade = models.PositiveIntegerField(default=40, verbose_name='Capacidade')
     ativa = models.BooleanField(default=True, verbose_name='Ativa')
 
@@ -32,6 +31,12 @@ class Disciplina(models.Model):
     professor = models.ForeignKey(
         Professor, on_delete=models.PROTECT,
         related_name='disciplinas', verbose_name='Professor Responsável'
+    )
+    alunos = models.ManyToManyField(
+        'accounts.Student',
+        related_name='disciplinas',
+        blank=True,
+        verbose_name='Alunos Matriculados',
     )
     semestre = models.CharField(max_length=2, choices=SEMESTRE_CHOICES, verbose_name='Semestre')
     ano = models.PositiveIntegerField(default=2024, verbose_name='Ano')
@@ -68,6 +73,15 @@ class Aula(models.Model):
         upload_to='qrcodes/', blank=True, null=True,
         verbose_name='Imagem QR Code'
     )
+    latitude = models.DecimalField(
+        max_digits=30, decimal_places=20, null=True, blank=True,
+        verbose_name='Latitude'
+    )
+    longitude = models.DecimalField(
+        max_digits=30, decimal_places=20, null=True, blank=True,
+        verbose_name='Longitude'
+    )
+    raio_permitido = models.PositiveIntegerField(default=50, verbose_name='Raio Permitido (metros)')
     descricao = models.CharField(max_length=255, blank=True, verbose_name='Descrição')
     ativa = models.BooleanField(default=True, verbose_name='Ativa')
     criada_em = models.DateTimeField(auto_now_add=True)
@@ -99,4 +113,5 @@ class Aula(models.Model):
     @property
     def presenca_url(self):
         from django.conf import settings
-        return f"{settings.SYSTEM_BASE_URL}/presenca?id={self.id}&token={self.token_qrcode}"
+        path = f'/presenca/registrar/?id={self.id}&token={self.token_qrcode}'
+        return f"{settings.SYSTEM_BASE_URL}{path}"

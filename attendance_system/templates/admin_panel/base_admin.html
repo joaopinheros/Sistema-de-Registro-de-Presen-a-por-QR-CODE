@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block nav_admin_panel %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .admin-subnav {
+    display: flex; gap: 4px; flex-wrap: wrap;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 10px 32px; position: sticky; top: 57px; z-index: 40;
+    margin: -32px -32px 0;
+  }
+  .admin-subnav a {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 8px;
+    font-size: .78rem; color: var(--text-muted);
+    text-decoration: none; transition: all .2s;
+    border: 1px solid transparent;
+  }
+  .admin-subnav a:hover { color: var(--text); background: var(--surface2); text-decoration: none; }
+  .admin-subnav a.active {
+    color: var(--accent); background: rgba(79,110,247,.12);
+    border-color: rgba(79,110,247,.3);
+  }
+  @media (max-width: 768px) {
+    .admin-subnav { padding: 10px 16px; top: 53px; margin: -18px -18px 0; }
+    .admin-subnav a span { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav class="admin-subnav">
+  <a href="/painel-admin/" class="{% block subnav_dashboard %}{% endblock %}">
+    <i class="fa-solid fa-gauge-high"></i> <span>Dashboard</span>
+  </a>
+  <a href="/painel-admin/usuarios/" class="{% block subnav_usuarios %}{% endblock %}">
+    <i class="fa-solid fa-users"></i> <span>Usuários</span>
+  </a>
+  <a href="/painel-admin/salas/" class="{% block subnav_salas %}{% endblock %}">
+    <i class="fa-solid fa-door-open"></i> <span>Salas</span>
+  </a>
+  <a href="/painel-admin/disciplinas/" class="{% block subnav_disciplinas %}{% endblock %}">
+    <i class="fa-solid fa-book"></i> <span>Disciplinas</span>
+  </a>
+  <a href="/painel-admin/vincular/" class="{% block subnav_vincular %}{% endblock %}">
+    <i class="fa-solid fa-link"></i> <span>Vincular Alunos</span>
+  </a>
+  <a href="/painel-admin/relatorios/" class="{% block subnav_relatorios %}{% endblock %}">
+    <i class="fa-solid fa-chart-bar"></i> <span>Relatórios</span>
+  </a>
+</nav>
+
+<div class="fade-in" style="padding: 28px 32px;">
+  {% block admin_content %}{% endblock %}
+</div>
+{% endblock %}

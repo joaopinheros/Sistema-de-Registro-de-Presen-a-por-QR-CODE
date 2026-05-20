@@ -1,0 +1,179 @@
+{% extends "professor_panel/base_professor.html" %}
+{% block title %}Painel Professor — UFVJM QR{% endblock %}
+{% block topbar_title %}Painel do Professor{% endblock %}
+{% block subnav_dashboard %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+  .chart-title { font-family:var(--font-head); font-size:.85rem; font-weight:700; margin-bottom:14px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; }
+</style>
+{% endblock %}
+
+{% block prof_content %}
+<h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:800;margin-bottom:20px;">
+  Olá, {{ request.user.first_name }}!
+</h2>
+
+<div class="stats-grid" style="margin-bottom:32px;">
+  <div class="stat-card blue">
+    <div class="stat-icon"><i class="fa-solid fa-book" style="color:var(--accent);"></i></div>
+    <div class="stat-label">Minhas Disciplinas</div>
+    <div class="stat-value">{{ stats.disciplinas }}</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon"><i class="fa-solid fa-chalkboard" style="color:var(--green);"></i></div>
+    <div class="stat-label">Aulas Hoje</div>
+    <div class="stat-value">{{ stats.aulas_hoje }}</div>
+  </div>
+  <div class="stat-card yellow">
+    <div class="stat-icon"><i class="fa-solid fa-clipboard-check" style="color:var(--yellow);"></i></div>
+    <div class="stat-label">Presenças Registradas</div>
+    <div class="stat-value">{{ stats.total_presencas }}</div>
+  </div>
+</div>
+
+<!-- ── Gráficos ── -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:28px;">
+
+  <!-- Gráfico A: Barras — Presença % por disciplina -->
+  <div class="chart-card">
+    <div class="chart-title"><i class="fa-solid fa-chart-bar" style="color:var(--accent);margin-right:6px;"></i>Presença por Disciplina (%)</div>
+    <canvas id="chartPresencaDisc" height="200"></canvas>
+  </div>
+
+  <!-- Gráfico B: Linha — Evolução das últimas 4 semanas -->
+  <div class="chart-card">
+    <div class="chart-title"><i class="fa-solid fa-chart-line" style="color:var(--green);margin-right:6px;"></i>Evolução — Últimas 4 Semanas</div>
+    <canvas id="chartEvolucao" height="200"></canvas>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+  <!-- Aulas de hoje -->
+  <div class="card" style="padding:0;">
+    <div class="card-header" style="padding:18px 20px 12px;">
+      <span class="card-title" style="font-size:.9rem;">
+        <i class="fa-solid fa-calendar-day" style="color:var(--accent);margin-right:6px;"></i>Aulas de Hoje
+      </span>
+      <a href="/painel-professor/aulas/" class="btn btn-outline btn-sm">Ver todas</a>
+    </div>
+    {% if aulas_hoje %}
+    <div>
+      {% for aula in aulas_hoje %}
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);">
+        <div style="width:40px;height:40px;border-radius:8px;background:rgba(79,110,247,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="fa-solid fa-chalkboard-user" style="color:var(--accent);font-size:.9rem;"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.82rem;font-weight:600;">{{ aula.disciplina.codigo }}</div>
+          <div style="font-size:.72rem;color:var(--text-muted);">
+            {{ aula.horario_inicio|time:"H:i" }} – {{ aula.horario_fim|time:"H:i" }} · {{ aula.sala.nome }}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:32px;">
+      <i class="fa-regular fa-calendar"></i>
+      <p>Nenhuma aula hoje.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Presenças recentes -->
+  <div class="card" style="padding:0;">
+    <div class="card-header" style="padding:18px 20px 12px;">
+      <span class="card-title" style="font-size:.9rem;">
+        <i class="fa-solid fa-clipboard-check" style="color:var(--green);margin-right:6px;"></i>Presenças Recentes
+      </span>
+      <a href="/painel-professor/presencas/" class="btn btn-outline btn-sm">Ver todas</a>
+    </div>
+    {% if presencas_recentes %}
+    <div>
+      {% for p in presencas_recentes %}
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            {{ p.aluno.user.get_full_name }}
+          </div>
+          <div style="font-size:.7rem;color:var(--text-muted);">
+            {{ p.aula.disciplina.codigo }} · {{ p.horario_registro|date:"d/m H:i" }}
+          </div>
+        </div>
+        <span class="badge badge-green" style="font-size:.65rem;">Presente</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:32px;">
+      <i class="fa-solid fa-clipboard-list"></i>
+      <p>Nenhuma presença registrada ainda.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#888';
+Chart.defaults.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#333';
+
+fetch('/painel-professor/dashboard/dados-graficos/')
+  .then(r => r.json())
+  .then(dados => {
+    // Gráfico A — Barras: presença % por disciplina
+    const labels = dados.presencas_por_disciplina.labels;
+    const dataPerc = dados.presencas_por_disciplina.data;
+    const bgColors = dataPerc.map(v => v >= 75 ? 'rgba(34,197,94,.7)' : v >= 50 ? 'rgba(251,191,36,.7)' : 'rgba(239,68,68,.7)');
+
+    new Chart(document.getElementById('chartPresencaDisc'), {
+      type: 'bar',
+      data: {
+        labels: labels.length ? labels : ['Sem dados'],
+        datasets: [{
+          label: 'Presença (%)',
+          data: dataPerc.length ? dataPerc : [0],
+          backgroundColor: bgColors.length ? bgColors : ['rgba(79,110,247,.5)'],
+          borderRadius: 6,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } },
+        },
+      },
+    });
+
+    // Gráfico B — Linha: evolução semanal
+    new Chart(document.getElementById('chartEvolucao'), {
+      type: 'line',
+      data: {
+        labels: dados.evolucao_semanal.labels,
+        datasets: [{
+          label: 'Presenças',
+          data: dados.evolucao_semanal.data,
+          borderColor: 'rgba(34,197,94,1)',
+          backgroundColor: 'rgba(34,197,94,.15)',
+          pointBackgroundColor: 'rgba(34,197,94,1)',
+          tension: 0.3,
+          fill: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+      },
+    });
+  })
+  .catch(() => console.warn('Erro ao carregar dados dos gráficos.'));
+</script>
+{% endblock %}

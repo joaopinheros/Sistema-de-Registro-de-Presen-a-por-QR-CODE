@@ -9,6 +9,13 @@ from django.views.decorators.http import require_http_methods
 @login_required
 def dashboard(request):
     user = request.user
+
+    # Role-based redirect to dedicated panels
+    if user.is_admin:
+        return redirect('/painel-admin/')
+    if user.is_professor:
+        return redirect('/painel-professor/')
+
     context = {'user': user}
 
     if user.is_student:
@@ -140,39 +147,202 @@ def gerenciar_disciplinas(request):
 def gerenciar_aulas(request):
     if not (request.user.is_admin or request.user.is_professor):
         return redirect('dashboard')
-    
-    from apps.courses.models import Aula
+
+    from apps.courses.models import Aula, Disciplina, Sala
     from apps.courses.services import QRCodeService
-    
+    from decimal import Decimal, InvalidOperation
+
     if request.user.is_admin:
         aulas = Aula.objects.select_related('disciplina__professor__user', 'sala').all()
+        disciplinas = Disciplina.objects.filter(ativa=True).select_related('professor__user')
     else:
         aulas = Aula.objects.filter(
             disciplina__professor__user=request.user
         ).select_related('disciplina__professor__user', 'sala')
-    
-    # Handle AJAX request to generate QR code
-    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        aula_id = request.POST.get('aula_id')
-        try:
-            aula = aulas.get(id=aula_id)
-            QRCodeService.generate(aula)
-            aula.refresh_from_db()
-            return JsonResponse({
-                'success': True,
-                'qrcode_url': aula.qrcode_imagem.url if aula.qrcode_imagem else None,
-                'message': 'QR Code gerado com sucesso!'
-            })
-        except Aula.DoesNotExist:
-            return JsonResponse({'success': False, 'message': 'Aula não encontrada'}, status=404)
-        except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)}, status=500)
-    
+        disciplinas = Disciplina.objects.filter(
+            professor__user=request.user, ativa=True
+        ).select_related('professor__user')
+
+    salas = Sala.objects.filter(ativa=True).order_by('predio', 'nome')
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+
+        # ── Criar aula ──────────────────────────────────────────────
+        if action == 'criar':
+            errors = []
+            disciplina_id  = request.POST.get('disciplina', '').strip()
+            sala_id        = request.POST.get('sala', '').strip()
+            data           = request.POST.get('data', '').strip()
+            horario_inicio = request.POST.get('horario_inicio', '').strip()
+            horario_fim    = request.POST.get('horario_fim', '').strip()
+            descricao      = request.POST.get('descricao', '').strip()
+            lat_raw        = request.POST.get('latitude', '').strip()
+            lon_raw        = request.POST.get('longitude', '').strip()
+            raio_raw       = request.POST.get('raio_permitido', '50').strip()
+
+            latitude = longitude = None
+            try:
+                if lat_raw:
+                    latitude = Decimal(lat_raw)
+                if lon_raw:
+                    longitude = Decimal(lon_raw)
+            except InvalidOperation:
+                errors.append('Coordenadas GPS inválidas.')
+
+            try:
+                raio_permitido = int(raio_raw) if raio_raw else 50
+            except ValueError:
+                raio_permitido = 50
+
+            if not disciplina_id:
+                errors.append('Selecione uma disciplina.')
+            if not sala_id:
+                errors.append('Selecione uma sala.')
+            if not data:
+                errors.append('Informe a data da aula.')
+            if not horario_inicio or not horario_fim:
+                errors.append('Informe os horários de início e fim.')
+            if horario_inicio and horario_fim and horario_inicio >= horario_fim:
+                errors.append('O horário de início deve ser anterior ao horário de fim.')
+
+            if not errors:
+                try:
+                    disciplina = disciplinas.get(id=disciplina_id)
+                    sala = salas.get(id=sala_id)
+                    Aula.objects.create(
+                        disciplina=disciplina,
+                        sala=sala,
+                        data=data,
+                        horario_inicio=horario_inicio,
+                        horario_fim=horario_fim,
+                        latitude=latitude,
+                        longitude=longitude,
+                        raio_permitido=raio_permitido,
+                        descricao=descricao,
+                    )
+                    return JsonResponse({'success': True, 'message': 'Aula criada com sucesso!'})
+                except Disciplina.DoesNotExist:
+                    errors.append('Disciplina não encontrada ou sem permissão.')
+                except Sala.DoesNotExist:
+                    errors.append('Sala não encontrada.')
+                except Exception as e:
+                    errors.append(f'Erro ao criar aula: {e}')
+
+            return JsonResponse({'success': False, 'errors': errors})
+
+        # ── Gerar QR Code (AJAX) ─────────────────────────────────────
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            aula_id = request.POST.get('aula_id')
+            try:
+                aula = aulas.get(id=aula_id)
+                QRCodeService.generate(aula, request=request)
+                aula.refresh_from_db()
+                return JsonResponse({
+                    'success': True,
+                    'qrcode_url': aula.qrcode_imagem.url if aula.qrcode_imagem else None,
+                    'message': 'QR Code gerado com sucesso!',
+                })
+            except Aula.DoesNotExist:
+                return JsonResponse({'success': False, 'message': 'Aula não encontrada'}, status=404)
+            except Exception as e:
+                return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
     context = {
         'aulas': aulas,
         'total': aulas.count(),
+        'disciplinas': disciplinas,
+        'salas': salas,
     }
     return render(request, 'core/gerenciar_aulas.html', context)
+
+
+@login_required
+def criar_aula(request):
+    if not (request.user.is_admin or request.user.is_professor):
+        return redirect('dashboard')
+
+    from apps.courses.models import Aula, Disciplina, Sala
+    from decimal import Decimal, InvalidOperation
+
+    if request.user.is_admin:
+        disciplinas = Disciplina.objects.select_related('professor__user').filter(ativa=True)
+    else:
+        disciplinas = Disciplina.objects.filter(
+            professor__user=request.user, ativa=True
+        ).select_related('professor__user')
+
+    salas = Sala.objects.filter(ativa=True).order_by('predio', 'nome')
+
+    errors = []
+
+    if request.method == 'POST':
+        disciplina_id = request.POST.get('disciplina')
+        sala_id = request.POST.get('sala')
+        data = request.POST.get('data')
+        horario_inicio = request.POST.get('horario_inicio')
+        horario_fim = request.POST.get('horario_fim')
+        descricao = request.POST.get('descricao', '')
+        lat_raw = request.POST.get('latitude', '').strip()
+        lon_raw = request.POST.get('longitude', '').strip()
+        raio_raw = request.POST.get('raio_permitido', '50').strip()
+
+        latitude = None
+        longitude = None
+        try:
+            if lat_raw:
+                latitude = Decimal(lat_raw)
+            if lon_raw:
+                longitude = Decimal(lon_raw)
+        except InvalidOperation:
+            errors.append('Coordenadas GPS inválidas.')
+
+        try:
+            raio_permitido = int(raio_raw) if raio_raw else 50
+        except ValueError:
+            raio_permitido = 50
+
+        if not disciplina_id:
+            errors.append('Selecione uma disciplina.')
+        if not sala_id:
+            errors.append('Selecione uma sala.')
+        if not data:
+            errors.append('Informe a data da aula.')
+        if not horario_inicio or not horario_fim:
+            errors.append('Informe os horários de início e fim.')
+        if horario_inicio and horario_fim and horario_inicio >= horario_fim:
+            errors.append('O horário de início deve ser anterior ao horário de fim.')
+
+        if not errors:
+            try:
+                disciplina = disciplinas.get(id=disciplina_id)
+                sala = salas.get(id=sala_id)
+                Aula.objects.create(
+                    disciplina=disciplina,
+                    sala=sala,
+                    data=data,
+                    horario_inicio=horario_inicio,
+                    horario_fim=horario_fim,
+                    latitude=latitude,
+                    longitude=longitude,
+                    raio_permitido=raio_permitido,
+                    descricao=descricao,
+                )
+                return redirect('gerenciar_aulas')
+            except Disciplina.DoesNotExist:
+                errors.append('Disciplina não encontrada.')
+            except Sala.DoesNotExist:
+                errors.append('Sala não encontrada.')
+            except Exception as e:
+                errors.append(f'Erro ao criar aula: {e}')
+
+    context = {
+        'disciplinas': disciplinas,
+        'salas': salas,
+        'errors': errors,
+        'post': request.POST if request.method == 'POST' else {},
+    }
+    return render(request, 'core/criar_aula.html', context)
 
 
 @login_required

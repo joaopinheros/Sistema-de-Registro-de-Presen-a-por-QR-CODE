@@ -1,4 +1,9 @@
 services:
+
+  # ═══════════════════════════════════════════════════════
+  # INFRAESTRUTURA
+  # ═══════════════════════════════════════════════════════
+
   db:
     image: postgres:16
     environment:
@@ -19,6 +24,180 @@ services:
     image: redis:7-alpine
     ports:
       - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════
+  # MICROSERVIÇOS DJANGO
+  # Compartilham o mesmo código mas são processos isolados,
+  # cada um expondo apenas suas responsabilidades via nginx.
+  # SERVICE_NAME define o contexto para logging/métricas.
+  # ═══════════════════════════════════════════════════════
+
+  auth-service:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8001 --workers 2 --timeout 60
+    environment:
+      SERVICE_NAME: auth-service
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    env_file: .env
+    expose:
+      - "8001"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  courses-service:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8002 --workers 2 --timeout 60
+    environment:
+      SERVICE_NAME: courses-service
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    env_file: .env
+    expose:
+      - "8002"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  attendance-service:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8003 --workers 4 --timeout 60
+    environment:
+      SERVICE_NAME: attendance-service
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    env_file: .env
+    expose:
+      - "8003"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  reports-service:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8004 --workers 2 --timeout 120
+    environment:
+      SERVICE_NAME: reports-service
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    env_file: .env
+    expose:
+      - "8004"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ═══════════════════════════════════════════════════════
+  # CELERY — Workers e Scheduler
+  # ═══════════════════════════════════════════════════════
+
+  celery-worker:
+    build: .
+    command: celery -A config.celery worker --loglevel=info --concurrency=4 -Q celery
+    environment:
+      SERVICE_NAME: celery-worker
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    env_file: .env
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  celery-beat:
+    build: .
+    command: celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      SERVICE_NAME: celery-beat
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # ═══════════════════════════════════════════════════════
+  # NGINX — Proxy reverso distribuindo entre microserviços
+  # ═══════════════════════════════════════════════════════
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_data:/app/staticfiles:ro
+      - media_data:/app/media:ro
+    depends_on:
+      - auth-service
+      - courses-service
+      - attendance-service
+      - reports-service
 
 volumes:
   postgres_data:
+  media_data:
+  static_data:

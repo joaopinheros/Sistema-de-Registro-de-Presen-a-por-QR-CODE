@@ -1,0 +1,225 @@
+{% extends "admin_panel/base_admin.html" %}
+{% block title %}Salas — Painel Admin{% endblock %}
+{% block topbar_title %}Salas{% endblock %}
+{% block subnav_salas %}active{% endblock %}
+
+{% block admin_content %}
+<div class="card">
+  <div class="card-header">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <i class="fa-solid fa-door-open" style="color:var(--accent);"></i>
+      <span class="card-title">Salas</span>
+      <span class="badge badge-blue" id="totalBadge">{{ total }}</span>
+    </div>
+    <button onclick="openCriarModal()" class="btn btn-primary btn-sm">
+      <i class="fa-solid fa-plus"></i> Nova Sala
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Nome</th><th>Prédio</th><th>Capacidade</th><th>Raio (m)</th><th>Coordenadas</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="tbodySalas">
+        {% for sala in salas %}
+        <tr id="row-sala-{{ sala.id }}">
+          <td><strong class="sala-nome">{{ sala.nome }}</strong></td>
+          <td style="color:var(--text-muted);font-size:.82rem;" class="sala-predio">{{ sala.predio }}</td>
+          <td style="font-size:.82rem;">{{ sala.capacidade }}</td>
+          <td style="font-size:.82rem;" class="sala-raio">{{ sala.raio_permitido }}m</td>
+          <td style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted);">
+            {% if sala.latitude and sala.longitude %}{{ sala.latitude|floatformat:4 }}, {{ sala.longitude|floatformat:4 }}
+            {% else %}<span style="opacity:.6;">Será capturado na aula</span>{% endif %}
+          </td>
+          <td><span id="badge-sala-{{ sala.id }}" class="badge {% if sala.ativa %}badge-green{% else %}badge-red{% endif %}">{% if sala.ativa %}Ativa{% else %}Inativa{% endif %}</span></td>
+          <td>
+            <div style="display:flex;gap:6px;">
+              <button onclick="editarSala({{ sala.id }})" class="btn btn-sm btn-primary" title="Editar"><i class="fa-solid fa-pencil"></i></button>
+              <button onclick="toggleSala({{ sala.id }}, {{ sala.ativa|lower }})" class="btn btn-sm {% if sala.ativa %}btn-danger{% else %}btn-success{% endif %}" id="btn-sala-{{ sala.id }}" title="{% if sala.ativa %}Desativar{% else %}Ativar{% endif %}">
+                {% if sala.ativa %}<i class="fa-solid fa-ban"></i>{% else %}<i class="fa-solid fa-check"></i>{% endif %}
+              </button>
+              <button onclick="deletarSala({{ sala.id }}, '{{ sala.nome|escapejs }}')" class="btn btn-sm btn-danger" title="Deletar">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr id="emptyRow"><td colspan="7"><div class="empty-state"><i class="fa-solid fa-door-closed"></i><p>Nenhuma sala cadastrada.</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Criar / Editar Sala ═══ -->
+<div id="modalCriarSala" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 id="modalSalaTitulo" style="font-family:var(--font-head);font-size:1rem;font-weight:700;"><i class="fa-solid fa-door-open" style="color:var(--accent);margin-right:8px;"></i>Nova Sala</h3>
+      <button onclick="closeCriarModal()" style="background:none;border:none;color:var(--text);font-size:1.4rem;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div id="modalSalaError" class="alert alert-error" style="display:none;margin-bottom:16px;"></div>
+
+    <div id="modalSalaGpsInfo" class="alert alert-info" style="margin-bottom:16px;font-size:.8rem;">
+      <i class="fa-solid fa-circle-info"></i>
+      As coordenadas GPS da sala serão capturadas automaticamente ao criar a primeira aula nela.
+    </div>
+
+    <form id="formCriarSala">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="criar" id="salaFormAction">
+      <div class="form-group"><label>Nome *</label><input type="text" name="nome" placeholder="Ex: Sala 301" required></div>
+      <div class="form-group"><label>Prédio *</label><input type="text" name="predio" placeholder="Ex: Bloco A" required></div>
+      <div class="form-grid" id="salaCapacidadeWrap">
+        <div class="form-group"><label>Capacidade</label><input type="number" name="capacidade" value="40" min="1" max="500"></div>
+        <div class="form-group"><label>Raio Permitido (m)</label><input type="number" name="raio_permitido" value="50" min="10" max="10000"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button type="submit" id="btnSalvarSala" class="btn btn-success" style="flex:1;justify-content:center;"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+        <button type="button" onclick="closeCriarModal()" class="btn btn-outline" style="flex:1;justify-content:center;">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCsrf() { return document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''; }
+let totalSalas = {{ total }};
+let editingSalaId = null;
+
+function openCriarModal() {
+  editingSalaId = null;
+  document.getElementById('formCriarSala').reset();
+  document.getElementById('salaFormAction').value = 'criar';
+  document.getElementById('modalSalaTitulo').innerHTML = '<i class="fa-solid fa-door-open" style="color:var(--accent);margin-right:8px;"></i>Nova Sala';
+  document.getElementById('btnSalvarSala').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar';
+  document.getElementById('modalSalaGpsInfo').style.display = 'flex';
+  document.getElementById('salaCapacidadeWrap').style.display = '';
+  document.getElementById('modalSalaError').style.display = 'none';
+  openModal('modalCriarSala');
+}
+
+function editarSala(salaId) {
+  fetch(`/painel-admin/salas/${salaId}/editar/`)
+  .then(r => r.json())
+  .then(data => {
+    editingSalaId = salaId;
+    const f = document.getElementById('formCriarSala');
+    f.querySelector('[name=nome]').value = data.nome;
+    f.querySelector('[name=predio]').value = data.predio;
+    f.querySelector('[name=raio_permitido]').value = data.raio_permitido;
+    document.getElementById('modalSalaTitulo').innerHTML = '<i class="fa-solid fa-pencil" style="color:var(--accent);margin-right:8px;"></i>Editar Sala';
+    document.getElementById('btnSalvarSala').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar Alterações';
+    document.getElementById('modalSalaGpsInfo').style.display = 'none';
+    document.getElementById('salaCapacidadeWrap').style.display = 'none';
+    document.getElementById('modalSalaError').style.display = 'none';
+    openModal('modalCriarSala');
+  })
+  .catch(() => showToast('Erro ao carregar dados da sala.', 'error'));
+}
+
+function closeCriarModal() { closeModal('modalCriarSala'); }
+document.getElementById('modalCriarSala').addEventListener('click', function(e) { if (e.target === this) closeModal('modalCriarSala'); });
+
+document.getElementById('formCriarSala').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSalvarSala');
+  const errDiv = document.getElementById('modalSalaError');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Salvando...';
+
+  const url = editingSalaId ? `/painel-admin/salas/${editingSalaId}/editar/` : '/painel-admin/salas/';
+
+  fetch(url, { method: 'POST', body: new FormData(this), headers: { 'X-CSRFToken': getCsrf() } })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      closeCriarModal();
+      showToast(data.message, 'success');
+      const s = data.sala;
+      if (editingSalaId) {
+        const row = document.getElementById(`row-sala-${s.id}`);
+        if (row) {
+          row.querySelector('.sala-nome').textContent = s.nome;
+          row.querySelector('.sala-predio').textContent = s.predio;
+          row.querySelector('.sala-raio').textContent = s.raio_permitido + 'm';
+        }
+      } else {
+        const row = `<tr id="row-sala-${s.id}">
+          <td><strong class="sala-nome">${s.nome}</strong></td>
+          <td style="color:var(--text-muted);font-size:.82rem;" class="sala-predio">${s.predio}</td>
+          <td style="font-size:.82rem;">${s.capacidade}</td>
+          <td style="font-size:.82rem;" class="sala-raio">${s.raio_permitido}m</td>
+          <td style="font-size:.72rem;color:var(--text-muted);opacity:.6;">Será capturado na aula</td>
+          <td><span id="badge-sala-${s.id}" class="badge badge-green">Ativa</span></td>
+          <td><div style="display:flex;gap:6px;">
+            <button onclick="editarSala(${s.id})" class="btn btn-sm btn-primary" title="Editar"><i class="fa-solid fa-pencil"></i></button>
+            <button onclick="toggleSala(${s.id}, true)" class="btn btn-sm btn-danger" id="btn-sala-${s.id}" title="Desativar"><i class="fa-solid fa-ban"></i></button>
+            <button onclick="deletarSala(${s.id}, '${s.nome.replace(/'/g, "\\'")}')" class="btn btn-sm btn-danger" title="Deletar"><i class="fa-solid fa-trash"></i></button>
+          </div></td>
+        </tr>`;
+        document.getElementById('emptyRow')?.remove();
+        document.getElementById('tbodySalas').insertAdjacentHTML('afterbegin', row);
+        totalSalas++;
+        document.getElementById('totalBadge').textContent = totalSalas;
+      }
+    } else {
+      errDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ' + data.error;
+      errDiv.style.display = 'flex';
+    }
+  })
+  .catch(() => { errDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Erro de conexão.'; errDiv.style.display = 'flex'; })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = editingSalaId ? '<i class="fa-solid fa-floppy-disk"></i> Salvar Alterações' : '<i class="fa-solid fa-floppy-disk"></i> Salvar';
+  });
+});
+
+function toggleSala(salaId, atualAtiva) {
+  const fd = new FormData();
+  fd.append('action', 'toggle_ativa'); fd.append('sala_id', salaId); fd.append('csrfmiddlewaretoken', getCsrf());
+  fetch('/painel-admin/salas/', { method: 'POST', body: fd })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const badge = document.getElementById(`badge-sala-${salaId}`);
+      const btn   = document.getElementById(`btn-sala-${salaId}`);
+      if (data.ativa) {
+        badge.className = 'badge badge-green'; badge.textContent = 'Ativa';
+        btn.className = 'btn btn-sm btn-danger'; btn.title = 'Desativar';
+        btn.innerHTML = '<i class="fa-solid fa-ban"></i>';
+        btn.onclick = () => toggleSala(salaId, true);
+      } else {
+        badge.className = 'badge badge-red'; badge.textContent = 'Inativa';
+        btn.className = 'btn btn-sm btn-success'; btn.title = 'Ativar';
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        btn.onclick = () => toggleSala(salaId, false);
+      }
+    }
+  });
+}
+
+function deletarSala(salaId, nome) {
+  if (!confirm(`Deletar a sala "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+  const fd = new FormData();
+  fd.append('action', 'deletar'); fd.append('sala_id', salaId); fd.append('csrfmiddlewaretoken', getCsrf());
+  fetch('/painel-admin/salas/', { method: 'POST', body: fd })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById(`row-sala-${salaId}`)?.remove();
+      totalSalas--;
+      document.getElementById('totalBadge').textContent = totalSalas;
+      showToast(data.message, 'success');
+    } else { showToast(data.error, 'error'); }
+  });
+}
+</script>
+<style>@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }</style>
+{% endblock %}

@@ -1,0 +1,223 @@
+{% extends "admin_panel/base_admin.html" %}
+{% block title %}Vincular Alunos — Painel Admin{% endblock %}
+{% block topbar_title %}Vincular Alunos{% endblock %}
+{% block subnav_vincular %}active{% endblock %}
+
+{% block admin_content %}
+<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">
+
+  <!-- Painel esquerdo: seletor + info -->
+  <div class="card">
+    <div style="font-family:var(--font-head);font-size:.9rem;font-weight:700;margin-bottom:14px;">
+      <i class="fa-solid fa-book" style="color:var(--accent);margin-right:6px;"></i>Disciplina
+    </div>
+    <select id="selectDisc" onchange="onDiscChange()"
+            style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:.85rem;margin-bottom:12px;">
+      <option value="">Selecione...</option>
+      {% for d in disciplinas %}
+      <option value="{{ d.id }}">{{ d.codigo }} — {{ d.nome }}</option>
+      {% endfor %}
+    </select>
+    <div id="discInfo" style="display:none;font-size:.78rem;color:var(--text-muted);line-height:1.8;border-top:1px solid var(--border);padding-top:10px;">
+      <div><strong>Disciplina:</strong> <span id="discNome">—</span></div>
+      <div><strong>Alunos vinculados:</strong> <span id="discContador" style="color:var(--green);font-weight:600;">0</span></div>
+    </div>
+  </div>
+
+  <!-- Painel direito: busca + listas -->
+  <div>
+    <!-- Sem disciplina selecionada -->
+    <div id="emptyPanel" class="card">
+      <div class="empty-state">
+        <i class="fa-solid fa-link"></i>
+        <p>Selecione uma disciplina para gerenciar os alunos matriculados.</p>
+      </div>
+    </div>
+
+    <!-- Painel ativo -->
+    <div id="activePanel" style="display:none;">
+
+      <!-- Busca de alunos -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="font-family:var(--font-head);font-size:.9rem;font-weight:700;margin-bottom:12px;">
+          <i class="fa-solid fa-magnifying-glass" style="color:var(--accent);margin-right:6px;"></i>Adicionar Alunos
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="buscaInput" placeholder="Buscar por nome ou matrícula..." style="flex:1;"
+                 oninput="debounce(buscarAlunos, 300)()">
+          <button onclick="buscarAlunos()" class="btn btn-primary btn-sm"><i class="fa-solid fa-magnifying-glass"></i></button>
+        </div>
+        <div id="resultadoBusca" style="display:none;border:1px solid var(--border);border-radius:8px;max-height:280px;overflow-y:auto;">
+          <!-- populated by JS -->
+        </div>
+        <div id="buscaEmpty" style="display:none;text-align:center;color:var(--text-muted);font-size:.82rem;padding:16px;">
+          Nenhum aluno encontrado.
+        </div>
+      </div>
+
+      <!-- Alunos vinculados -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-family:var(--font-head);font-size:.9rem;font-weight:700;">
+            <i class="fa-solid fa-users" style="color:var(--green);margin-right:6px;"></i>Alunos Matriculados
+            <span id="badgeCount" class="badge badge-green" style="margin-left:6px;">0</span>
+          </div>
+        </div>
+        <div id="listaVinculados">
+          <div style="text-align:center;color:var(--text-muted);font-size:.82rem;padding:24px;">
+            <i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Carregando...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCsrf() { return document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''; }
+let currentDiscId = null;
+let enrolledIds = new Set();
+
+function onDiscChange() {
+  const discId = document.getElementById('selectDisc').value;
+  if (!discId) {
+    document.getElementById('emptyPanel').style.display = '';
+    document.getElementById('activePanel').style.display = 'none';
+    document.getElementById('discInfo').style.display = 'none';
+    currentDiscId = null;
+    return;
+  }
+  currentDiscId = discId;
+  document.getElementById('emptyPanel').style.display = 'none';
+  document.getElementById('activePanel').style.display = '';
+  document.getElementById('discInfo').style.display = '';
+  document.getElementById('buscaInput').value = '';
+  document.getElementById('resultadoBusca').style.display = 'none';
+  document.getElementById('buscaEmpty').style.display = 'none';
+  carregarVinculados();
+}
+
+function carregarVinculados() {
+  fetch(`/painel-admin/vincular/api/?action=enrolled&disciplina=${currentDiscId}`)
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('discNome').textContent = data.disciplina.nome;
+    const alunos = data.alunos;
+    enrolledIds = new Set(alunos.map(a => a.id));
+    const count = alunos.length;
+    document.getElementById('discContador').textContent = count;
+    document.getElementById('badgeCount').textContent = count;
+
+    const container = document.getElementById('listaVinculados');
+    if (!alunos.length) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:.82rem;padding:24px;"><i class="fa-solid fa-user-slash" style="margin-right:6px;"></i>Nenhum aluno vinculado ainda.</div>';
+      return;
+    }
+    container.innerHTML = alunos.map(a => renderVinculado(a)).join('');
+  });
+}
+
+function renderVinculado(a) {
+  const initials = a.nome.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  return `<div id="vinc-${a.id}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
+    <div style="width:32px;height:32px;border-radius:50%;background:rgba(16,217,138,.15);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:var(--green);flex-shrink:0;">${initials}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:.82rem;font-weight:600;">${a.nome}</div>
+      <div style="font-size:.7rem;color:var(--text-muted);">${a.matricula} · ${a.curso || ''}</div>
+    </div>
+    <button onclick="removerAluno(${a.id}, '${a.nome.replace(/'/g,'')}')" class="btn btn-sm btn-danger" style="flex-shrink:0;">
+      <i class="fa-solid fa-times"></i> Remover
+    </button>
+  </div>`;
+}
+
+function buscarAlunos() {
+  const q = document.getElementById('buscaInput').value.trim();
+  if (!q) {
+    document.getElementById('resultadoBusca').style.display = 'none';
+    document.getElementById('buscaEmpty').style.display = 'none';
+    return;
+  }
+  fetch(`/painel-admin/vincular/api/?action=buscar&q=${encodeURIComponent(q)}&disciplina=${currentDiscId}`)
+  .then(r => r.json())
+  .then(data => {
+    const alunos = data.alunos;
+    const cont = document.getElementById('resultadoBusca');
+    const empty = document.getElementById('buscaEmpty');
+    if (!alunos.length) { cont.style.display = 'none'; empty.style.display = ''; return; }
+    cont.style.display = ''; empty.style.display = 'none';
+    cont.innerHTML = alunos.map(a => {
+      const initials = a.nome.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+      const enrolled = a.enrolled || enrolledIds.has(a.id);
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <div style="width:30px;height:30px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;">${initials}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.82rem;font-weight:600;">${a.nome}</div>
+          <div style="font-size:.7rem;color:var(--text-muted);">${a.matricula}</div>
+        </div>
+        ${enrolled
+          ? `<span class="badge badge-green" style="flex-shrink:0;font-size:.7rem;">Vinculado</span>`
+          : `<button onclick="adicionarAluno(${a.id}, '${a.nome.replace(/'/g,'')}')" class="btn btn-sm btn-success" style="flex-shrink:0;"><i class="fa-solid fa-plus"></i> Adicionar</button>`
+        }
+      </div>`;
+    }).join('');
+  });
+}
+
+function adicionarAluno(alunoId, nome) {
+  const fd = new FormData();
+  fd.append('action', 'adicionar');
+  fd.append('disciplina', currentDiscId);
+  fd.append('aluno', alunoId);
+  fd.append('csrfmiddlewaretoken', getCsrf());
+  fetch('/painel-admin/vincular/api/', { method: 'POST', body: fd })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      showToast(data.message, 'success');
+      enrolledIds.add(alunoId);
+      carregarVinculados();
+      buscarAlunos(); // refresh search results
+    } else { showToast(data.error || 'Erro', 'error'); }
+  });
+}
+
+function removerAluno(alunoId, nome) {
+  const fd = new FormData();
+  fd.append('action', 'remover');
+  fd.append('disciplina', currentDiscId);
+  fd.append('aluno', alunoId);
+  fd.append('csrfmiddlewaretoken', getCsrf());
+  fetch('/painel-admin/vincular/api/', { method: 'POST', body: fd })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      showToast(data.message, 'success');
+      enrolledIds.delete(alunoId);
+      document.getElementById(`vinc-${alunoId}`)?.remove();
+      const count = document.querySelectorAll('#listaVinculados [id^="vinc-"]').length;
+      document.getElementById('discContador').textContent = count;
+      document.getElementById('badgeCount').textContent = count;
+      if (count === 0) {
+        document.getElementById('listaVinculados').innerHTML =
+          '<div style="text-align:center;color:var(--text-muted);font-size:.82rem;padding:24px;"><i class="fa-solid fa-user-slash" style="margin-right:6px;"></i>Nenhum aluno vinculado ainda.</div>';
+      }
+      buscarAlunos();
+    } else { showToast(data.error || 'Erro', 'error'); }
+  });
+}
+
+// Debounce utility
+function debounce(fn, delay) {
+  let timer;
+  return function(...args) { clearTimeout(timer); timer = setTimeout(() => fn.apply(this, args), delay); };
+}
+
+// Attach debounce to input
+document.getElementById('buscaInput').addEventListener('input', debounce(buscarAlunos, 300));
+</script>
+{% csrf_token %}
+<style>@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }</style>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "professor_panel/base_professor.html" %}
+{% block title %}Minhas Aulas — Professor{% endblock %}
+{% block topbar_title %}Minhas Aulas{% endblock %}
+{% block subnav_aulas %}active{% endblock %}
+
+{% block prof_content %}
+<div class="card">
+  <div class="card-header">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <i class="fa-solid fa-chalkboard-user" style="color:var(--accent);"></i>
+      <span class="card-title">Minhas Aulas</span>
+      <span class="badge badge-blue">{{ total }}</span>
+    </div>
+    <a href="/dashboard/aulas/" class="btn btn-primary btn-sm">
+      <i class="fa-solid fa-plus"></i> Nova Aula
+    </a>
+  </div>
+
+  <!-- Filtro -->
+  <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+    <select name="disciplina" onchange="this.form.submit()"
+            style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:.85rem;">
+      <option value="">Todas as disciplinas</option>
+      {% for d in disciplinas %}
+      <option value="{{ d.id }}" {% if filtro_disc == d.id|stringformat:"s" %}selected{% endif %}>
+        {{ d.codigo }} — {{ d.nome }}
+      </option>
+      {% endfor %}
+    </select>
+    {% if filtro_disc %}
+    <a href="/painel-professor/aulas/" class="btn btn-outline btn-sm">
+      <i class="fa-solid fa-xmark"></i> Limpar
+    </a>
+    {% endif %}
+  </form>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Disciplina</th>
+          <th>Data</th>
+          <th>Horário</th>
+          <th>Sala</th>
+          <th>Status</th>
+          <th>QR</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for aula in aulas %}
+        <tr>
+          <td>
+            <div>
+              <strong style="font-size:.82rem;">{{ aula.disciplina.codigo }}</strong><br>
+              <span style="font-size:.7rem;color:var(--text-muted);">{{ aula.disciplina.nome }}</span>
+            </div>
+          </td>
+          <td style="font-size:.82rem;">{{ aula.data|date:"d/m/Y" }}</td>
+          <td>
+            <code style="font-size:.75rem;background:var(--surface2);padding:2px 6px;border-radius:4px;">
+              {{ aula.horario_inicio|time:"H:i" }} – {{ aula.horario_fim|time:"H:i" }}
+            </code>
+          </td>
+          <td style="font-size:.82rem;color:var(--text-muted);">{{ aula.sala.nome }}</td>
+          <td>
+            {% if aula.ativa %}
+              <span class="badge badge-green">Ativa</span>
+            {% else %}
+              <span class="badge badge-red">Inativa</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if aula.qrcode_imagem %}
+              <a href="{{ aula.qrcode_imagem.url }}" target="_blank" class="btn btn-outline btn-sm">
+                <i class="fa-solid fa-qrcode"></i>
+              </a>
+            {% else %}
+              <a href="/dashboard/aulas/" class="btn btn-outline btn-sm" title="Gerar QR Code em Gerenciar Aulas">
+                <i class="fa-solid fa-plus"></i>
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6">
+            <div class="empty-state">
+              <i class="fa-regular fa-calendar"></i>
+              <p>Nenhuma aula encontrada.</p>
+              <a href="/dashboard/aulas/" class="btn btn-primary btn-sm" style="margin-top:12px;">
+                <i class="fa-solid fa-plus"></i> Criar Aula
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,19 +1,59 @@
 {% extends "base.html" %}
-{% block title %}Erro — UFVJM QR{% endblock %}
-{% block topbar_title %}Erro{% endblock %}
+{% block title %}{% if tipo == 'sem_qr' %}Registrar Presença{% else %}QR Code Inválido{% endif %} — UFVJM QR{% endblock %}
+{% block topbar_title %}{% if tipo == 'sem_qr' %}Presença{% else %}Erro{% endif %}{% endblock %}
+
 {% block content %}
-<div style="max-width:420px;margin:60px auto;text-align:center;" class="fade-in">
-  <div style="font-size:3.5rem;margin-bottom:20px;color:var(--red)">
+<div style="max-width:440px;margin:60px auto;text-align:center;" class="fade-in">
+
+  {% if tipo == 'sem_qr' %}
+  <!-- Friendly "scan your QR" page -->
+  <div style="font-size:3.5rem;margin-bottom:20px;color:var(--accent);">
+    <i class="fa-solid fa-qrcode"></i>
+  </div>
+  <h2 style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;margin-bottom:10px;">
+    Escaneie o QR Code da Aula
+  </h2>
+  <p class="text-muted" style="font-size:.85rem;line-height:1.7;margin-bottom:28px;">
+    Para registrar sua presença, use a câmera do seu celular para escanear o QR Code exibido pelo professor na sala de aula.
+  </p>
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:28px;text-align:left;">
+    <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;">Como fazer:</p>
+    <ol style="font-size:.83rem;color:var(--text-muted);line-height:1.8;padding-left:18px;">
+      <li>Abra a câmera do celular ou um leitor de QR Code</li>
+      <li>Aponte para o QR Code da aula</li>
+      <li>Toque no link que aparecer</li>
+      <li>Faça login se necessário e confirme sua presença</li>
+    </ol>
+  </div>
+  <div style="display:flex;gap:10px;justify-content:center;">
+    <a href="{% url 'presenca_scanner' %}" class="btn btn-primary">
+      <i class="fa-solid fa-camera"></i> Abrir Scanner
+    </a>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline">
+      <i class="fa-solid fa-house"></i> Dashboard
+    </a>
+  </div>
+
+  {% else %}
+  <!-- Error page -->
+  <div style="font-size:3.5rem;margin-bottom:20px;color:var(--red);">
     <i class="fa-solid fa-triangle-exclamation"></i>
   </div>
   <h2 style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;margin-bottom:10px;">
     QR Code Inválido
   </h2>
   <p class="text-muted" style="font-size:.85rem;line-height:1.7;margin-bottom:28px;">
-    {{ mensagem }}
+    {{ mensagem|default:"Este QR Code não é válido ou já expirou." }}
   </p>
-  <a href="{% url 'dashboard' %}" class="btn btn-outline">
-    <i class="fa-solid fa-house"></i> Voltar ao Dashboard
-  </a>
+  <div style="display:flex;gap:10px;justify-content:center;">
+    <a href="{% url 'presenca_scanner' %}" class="btn btn-primary">
+      <i class="fa-solid fa-redo"></i> Tentar Novamente
+    </a>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline">
+      <i class="fa-solid fa-house"></i> Dashboard
+    </a>
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}

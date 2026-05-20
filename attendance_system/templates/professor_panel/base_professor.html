@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block nav_prof_panel %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .prof-subnav {
+    display: flex; gap: 4px; flex-wrap: wrap;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 10px 32px; position: sticky; top: 57px; z-index: 40;
+    margin: -32px -32px 0;
+  }
+  .prof-subnav a {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 8px;
+    font-size: .78rem; color: var(--text-muted);
+    text-decoration: none; transition: all .2s;
+    border: 1px solid transparent;
+  }
+  .prof-subnav a:hover { color: var(--text); background: var(--surface2); text-decoration: none; }
+  .prof-subnav a.active {
+    color: var(--accent); background: rgba(79,110,247,.12);
+    border-color: rgba(79,110,247,.3);
+  }
+  @media (max-width: 768px) {
+    .prof-subnav { padding: 10px 16px; top: 53px; margin: -18px -18px 0; }
+    .prof-subnav a span { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav class="prof-subnav">
+  <a href="/painel-professor/" class="{% block subnav_dashboard %}{% endblock %}">
+    <i class="fa-solid fa-gauge"></i> <span>Dashboard</span>
+  </a>
+  <a href="/painel-professor/aulas/" class="{% block subnav_aulas %}{% endblock %}">
+    <i class="fa-solid fa-chalkboard-user"></i> <span>Minhas Aulas</span>
+  </a>
+  <a href="/painel-professor/disciplinas/" class="{% block subnav_disciplinas %}{% endblock %}">
+    <i class="fa-solid fa-book"></i> <span>Minhas Disciplinas</span>
+  </a>
+  <a href="/painel-professor/presencas/" class="{% block subnav_presencas %}{% endblock %}">
+    <i class="fa-solid fa-clipboard-list"></i> <span>Presenças</span>
+  </a>
+</nav>
+
+<div class="fade-in" style="padding: 28px 32px;">
+  {% block prof_content %}{% endblock %}
+</div>
+{% endblock %}

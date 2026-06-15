@@ -197,7 +197,7 @@ SYSTEM_BASE_URL = config('SYSTEM_BASE_URL', default='http://localhost:8000')
 # University network IP ranges (CIDR notation)
 UNIVERSITY_IP_RANGES = config(
     'UNIVERSITY_IP_RANGES',
-    default='177.74.237.209,127.0.0.1,10.0.0.0/8,192.168.0.0/16,200.131.0.0/16'
+    default='200.128.184.0/16,200.128.184.174'
 ).strip().split(',')
 
 # IPs permitidos para registro de presença
@@ -213,6 +213,8 @@ if DEBUG:
         '2804:14c::/32',                           # Range IPv6 da operadora
         '177.74.237.209',                          # IP da UFVJM
         '200.131.0.0/16',                          # Range UFVJM
+        '200.128.184.0/16',
+        '200.128.184.174'
     ]
 else:
     ALLOWED_IP_RANGES = config(
